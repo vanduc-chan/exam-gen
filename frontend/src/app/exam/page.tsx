@@ -94,12 +94,12 @@ const ExamPage = () => {
 
   const handleExport = async (id: string) => {
     try {
-      toast.info('Đang tạo file Zip...', { id: 'export' });
-      const blob = await examService.exportToZip(id);
+      toast.info('Đang tạo file Word...', { id: 'export' });
+      const blob = await examService.exportToWord(id);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `exams-${id.substring(0,8)}.zip`);
+      link.setAttribute('download', `exams-${id.substring(0,8)}.docx`);
       document.body.appendChild(link);
       link.click();
       link.remove();

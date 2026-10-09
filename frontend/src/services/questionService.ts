@@ -42,5 +42,14 @@ export const questionService = {
       params: { subjectId, type }
     });
     return response.data;
+  },
+
+  importExcel: async (formData: FormData) => {
+    const response = await api.post<ApiResponse<Question[]>>('/questions/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   }
 };

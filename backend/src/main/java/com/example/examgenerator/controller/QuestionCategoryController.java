@@ -1,7 +1,7 @@
 package com.example.examgenerator.controller;
 
 import com.example.examgenerator.dto.response.ApiResponse;
-import com.example.examgenerator.entity.QuestionCategory;
+import com.example.examgenerator.dto.response.QuestionCategoryResponse;
 import com.example.examgenerator.service.QuestionCategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,8 @@ public class QuestionCategoryController {
     private final QuestionCategoryService questionCategoryService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<QuestionCategory>>> getAllCategories() {
+    public ResponseEntity<ApiResponse<List<QuestionCategoryResponse>>> getAllCategories() {
         return ResponseEntity.ok(ApiResponse.success(questionCategoryService.getAllCategories()));
     }
 }
+

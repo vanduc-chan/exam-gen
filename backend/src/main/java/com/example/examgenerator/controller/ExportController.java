@@ -20,16 +20,16 @@ public class ExportController {
 
     private final ExportService exportService;
 
-    @GetMapping("/exams/{id}/zip")
-    public ResponseEntity<byte[]> exportExamToZip(@PathVariable UUID id) throws IOException {
-        byte[] zipBytes = exportService.exportExamToZip(id);
+    @GetMapping("/exams/{id}/word")
+    public ResponseEntity<byte[]> exportExamToWord(@PathVariable UUID id) throws IOException {
+        byte[] docBytes = exportService.exportExamToWord(id);
         
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        headers.setContentDispositionFormData("attachment", "exams.zip");
+        headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+        headers.setContentDispositionFormData("attachment", "exams.docx");
         
         return ResponseEntity.ok()
                 .headers(headers)
-                .body(zipBytes);
+                .body(docBytes);
     }
 }

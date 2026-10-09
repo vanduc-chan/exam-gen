@@ -31,8 +31,8 @@ export const examService = {
     return response.data;
   },
 
-  exportToZip: async (id: string) => {
-    const response = await api.get(`/export/exams/${id}/zip`, {
+  exportToWord: async (id: string) => {
+    const response = await api.get(`/export/exams/${id}/word`, {
       responseType: 'blob',
     });
     return response.data;

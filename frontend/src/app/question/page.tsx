@@ -4,10 +4,12 @@ import { Question } from '@/types/question';
 import { Subject } from '@/types/subject';
 import { questionService } from '@/services/questionService';
 import { subjectService } from '@/services/subjectService';
+import api from '@/lib/api';
 import QuestionTable from '@/components/question/QuestionTable';
 import QuestionFilter from '@/components/question/QuestionFilter';
+import QuestionImportModal from '@/components/question/QuestionImportModal';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Pagination,
@@ -22,7 +24,9 @@ const QuestionListPage = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
@@ -57,8 +61,18 @@ const QuestionListPage = () => {
     }
   };
 
+  const loadCategories = async () => {
+    try {
+      const res = await api.get('/question-categories');
+      setCategories(res.data.data.content || res.data.data);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
   useEffect(() => {
     loadSubjects();
+    loadCategories();
   }, []);
 
   useEffect(() => {
@@ -123,6 +137,9 @@ const QuestionListPage = () => {
               <Trash2 className="mr-2 h-4 w-4" /> Xóa ({selectedIds.length})
             </Button>
           )}
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" /> Nhập Excel
+          </Button>
           <Button onClick={() => navigate('/questions/create')}>
             <Plus className="mr-2 h-4 w-4" /> Thêm câu hỏi
           </Button>
@@ -183,6 +200,17 @@ const QuestionListPage = () => {
           )}
         </>
       )}
+
+      <QuestionImportModal
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        subjects={subjects}
+        categories={categories}
+        onSuccess={() => {
+          setPage(0);
+          loadData();
+        }}
+      />
     </div>
   );
 };

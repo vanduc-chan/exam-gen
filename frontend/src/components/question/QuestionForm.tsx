@@ -122,7 +122,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
             name="categoryId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phân loại cấu trúc (Gốc)</FormLabel>
+                <FormLabel>Phân loại danh mục câu hỏi</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                   <FormControl>
                     <SelectTrigger>

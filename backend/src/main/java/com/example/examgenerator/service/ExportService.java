@@ -9,10 +9,7 @@ import com.example.examgenerator.repository.ExamDetailRepository;
 import com.example.examgenerator.repository.ExamQuestionRepository;
 import com.example.examgenerator.repository.ExamRepository;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +17,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
@@ -32,68 +27,82 @@ public class ExportService {
     private final ExamQuestionRepository examQuestionRepository;
 
     @Transactional
-    public byte[] exportExamToZip(UUID examId) throws IOException {
+    public byte[] exportExamToWord(UUID examId) throws IOException {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Đợt sinh đề không tồn tại"));
 
         List<ExamDetail> details = examDetailRepository.findByExamId(examId);
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
-            for (ExamDetail detail : details) {
-                byte[] wordBytes = generateWordDocument(exam, detail);
-                ZipEntry entry = new ZipEntry(detail.getExamSetCode() + ".docx");
-                zos.putNextEntry(entry);
-                zos.write(wordBytes);
-                zos.closeEntry();
-            }
-        }
-
-        // Update status to EXPORTED
-        exam.setStatus(ExamStatus.EXPORTED);
-        examRepository.save(exam);
-
-        return baos.toByteArray();
-    }
-
-    private byte[] generateWordDocument(Exam exam, ExamDetail detail) throws IOException {
         try (XWPFDocument document = new XWPFDocument()) {
-            
-            // Header
-            XWPFParagraph header = document.createParagraph();
-            header.setAlignment(ParagraphAlignment.CENTER);
-            XWPFRun runHeader = header.createRun();
-            runHeader.setBold(true);
-            runHeader.setFontSize(14);
-            runHeader.setText(exam.getTitle().toUpperCase());
-            runHeader.addBreak();
-            runHeader.setText("Môn: " + exam.getSubject().getSubjectName());
-            runHeader.addBreak();
-            runHeader.setText("Mã đề: " + detail.getExamSetCode());
-            runHeader.addBreak();
-            
-            XWPFRun runSubHeader = header.createRun();
-            runSubHeader.setItalic(true);
-            runSubHeader.setText("Thời gian làm bài: " + exam.getDurationMinutes() + " phút");
-            runSubHeader.addBreak();
-            runSubHeader.addBreak();
-
-            // Questions
-            List<ExamQuestion> questions = examQuestionRepository.findByExamDetailId(detail.getId());
-            for (int i = 0; i < questions.size(); i++) {
-                ExamQuestion eq = questions.get(i);
-                XWPFParagraph qParagraph = document.createParagraph();
-                XWPFRun qRun = qParagraph.createRun();
-                qRun.setBold(true);
-                qRun.setText("Câu " + (i + 1) + " (" + eq.getScore() + " điểm): ");
+            for (int dIndex = 0; dIndex < details.size(); dIndex++) {
+                ExamDetail detail = details.get(dIndex);
                 
-                XWPFRun qContent = qParagraph.createRun();
-                qContent.setText(eq.getQuestion().getContent());
-                qContent.addBreak();
+                // Create a table with 1 row and 1 column for the border box
+                XWPFTable table = document.createTable(1, 1);
+                
+                // Set double borders
+                table.setTopBorder(XWPFTable.XWPFBorderType.DOUBLE, 8, 0, "000000");
+                table.setBottomBorder(XWPFTable.XWPFBorderType.DOUBLE, 8, 0, "000000");
+                table.setLeftBorder(XWPFTable.XWPFBorderType.DOUBLE, 8, 0, "000000");
+                table.setRightBorder(XWPFTable.XWPFBorderType.DOUBLE, 8, 0, "000000");
+                
+                // Set table width to 100%
+                table.setWidth("100%");
+
+                XWPFTableCell cell = table.getRow(0).getCell(0);
+                
+                // Header (ĐỀ SỐ XX)
+                XWPFParagraph header = cell.getParagraphArray(0);
+                header.setAlignment(ParagraphAlignment.CENTER);
+                XWPFRun runHeader = header.createRun();
+                runHeader.setBold(true);
+                runHeader.setFontFamily("Times New Roman");
+                runHeader.setFontSize(13);
+                runHeader.setText("ĐỀ SỐ " + String.format("%02d", dIndex + 1));
+                
+                // Questions
+                List<ExamQuestion> questions = examQuestionRepository.findByExamDetailId(detail.getId());
+                for (int i = 0; i < questions.size(); i++) {
+                    ExamQuestion eq = questions.get(i);
+                    XWPFParagraph qParagraph = cell.addParagraph();
+                    qParagraph.setAlignment(ParagraphAlignment.BOTH); // Justify
+                    
+                    XWPFRun qRun = qParagraph.createRun();
+                    qRun.setBold(true);
+                    qRun.setFontFamily("Times New Roman");
+                    qRun.setFontSize(13);
+                    // Format: Câu 1: Đồng chí trình bày... (4,0đ)
+                    String contentStr = eq.getQuestion().getContent();
+                    
+                    // The image shows the entire question text in bold, including the score.
+                    // Let's clean up any line breaks and put it all in bold.
+                    String qText = "Câu " + (i + 1) + ": " + contentStr + " (" + 
+                        (eq.getScore() != null ? String.format("%.1f", eq.getScore()).replace('.', ',') : "0,0") + "đ)";
+                    qRun.setText(qText);
+                }
+                
+                // Add an empty paragraph inside the cell at the end for padding
+                XWPFParagraph pad = cell.addParagraph();
+                XWPFRun padRun = pad.createRun();
+                padRun.setFontSize(13);
+                
+                // Separator if not last
+                if (dIndex < details.size() - 1) {
+                    XWPFParagraph sep = document.createParagraph();
+                    sep.setAlignment(ParagraphAlignment.CENTER);
+                    XWPFRun sepRun = sep.createRun();
+                    sepRun.setText(".........................................................................................................................................................");
+                    sepRun.setFontSize(10);
+                }
             }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             document.write(out);
+            
+            // Update status to EXPORTED
+            exam.setStatus(ExamStatus.EXPORTED);
+            examRepository.save(exam);
+            
             return out.toByteArray();
         }
     }

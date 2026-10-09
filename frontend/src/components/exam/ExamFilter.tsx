@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select';
 import { Subject } from '@/types/subject';
 import { Course } from '@/types/course';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface ExamFilterProps {
   subjects: Subject[];
@@ -23,13 +24,31 @@ interface ExamFilterProps {
 }
 
 const ExamFilter: React.FC<ExamFilterProps> = ({ subjects, courses, onFilterChange, filters }) => {
+  const [searchTerm, setSearchTerm] = useState(filters.search || '');
+  const debouncedSearch = useDebounce(searchTerm, 350);
+
+  useEffect(() => {
+    setSearchTerm(filters.search || '');
+  }, [filters.search]);
+
+  useEffect(() => {
+    if (debouncedSearch !== (filters.search || '')) {
+      onFilterChange({ ...filters, search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
+
+  const handleClear = () => {
+    setSearchTerm('');
+    onFilterChange({});
+  };
+
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-md border">
       <div className="flex-1">
         <Input 
           placeholder="Tìm kiếm mã hoặc tên đợt sinh đề..." 
-          value={filters.search || ''}
-          onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
       <div className="w-48">
@@ -64,7 +83,7 @@ const ExamFilter: React.FC<ExamFilterProps> = ({ subjects, courses, onFilterChan
           </SelectContent>
         </Select>
       </div>
-      <Button variant="outline" onClick={() => onFilterChange({})}>
+      <Button variant="outline" onClick={handleClear}>
         Xóa lọc
       </Button>
     </div>
@@ -72,3 +91,4 @@ const ExamFilter: React.FC<ExamFilterProps> = ({ subjects, courses, onFilterChan
 };
 
 export default ExamFilter;
+

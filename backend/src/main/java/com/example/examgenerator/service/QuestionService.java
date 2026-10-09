@@ -18,9 +18,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.io.InputStream;
+
+import org.springframework.web.multipart.MultipartFile;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +40,7 @@ public class QuestionService {
     private final SubjectRepository subjectRepository;
     private final QuestionCategoryRepository questionCategoryRepository;
     private final QuestionMapper questionMapper;
+    private final QuestionSequenceService questionSequenceService;
 
     @Transactional(readOnly = true)
     public Page<QuestionResponse> getQuestions(UUID subjectId, QuestionType type, DifficultyLevel level, String search, Pageable pageable) {
@@ -59,9 +70,10 @@ public class QuestionService {
 
         Question question = questionMapper.toEntity(request, category, subject);
         
-        // Auto gen code if missing
-        if (question.getCode() == null || question.getCode().isEmpty()) {
-            question.setCode("Q-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        // Auto gen code if missing: <Mã môn học>-<Số thứ tự câu hỏi>
+        if (question.getCode() == null || question.getCode().trim().isEmpty()) {
+            Long nextSeq = questionSequenceService.getNextSequenceValue(subject.getSubjectCode());
+            question.setCode(subject.getSubjectCode() + "-" + nextSeq);
         }
 
         question = questionRepository.save(question);
@@ -97,5 +109,63 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public long countActiveQuestions(UUID subjectId, QuestionType type) {
         return questionRepository.countActiveQuestionsBySubjectAndType(subjectId, type);
+    }
+
+    @Transactional
+    public List<QuestionResponse> importQuestionsFromExcel(MultipartFile file, UUID subjectId, UUID categoryId, QuestionType type, DifficultyLevel difficultyLevel, Double score) {
+        Subject subject = subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại với ID: " + subjectId));
+        
+        QuestionCategory category = questionCategoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Phân loại câu hỏi không tồn tại với ID: " + categoryId));
+
+        List<Question> questionsToSave = new ArrayList<>();
+        DataFormatter dataFormatter = new DataFormatter();
+
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            boolean isFirstRow = true;
+
+            for (Row row : sheet) {
+                if (isFirstRow) {
+                    isFirstRow = false;
+                    continue; // Skip header
+                }
+
+                Cell questionCell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                Cell answerCell = row.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+                if (questionCell == null) {
+                    continue; 
+                }
+
+                String content = dataFormatter.formatCellValue(questionCell).trim();
+                if (content.isEmpty()) {
+                    continue;
+                }
+                
+                String answer = answerCell != null ? dataFormatter.formatCellValue(answerCell).trim() : "";
+
+                Question question = new Question();
+                question.setContent(content);
+                question.setAnswer(answer);
+                question.setType(type);
+                question.setDifficultyLevel(difficultyLevel);
+                question.setScore(score);
+                question.setCategory(category);
+                question.setSubject(subject);
+                question.setIsActive(true);
+                
+                Long nextSeq = questionSequenceService.getNextSequenceValue(subject.getSubjectCode());
+                question.setCode(subject.getSubjectCode() + "-" + nextSeq);
+
+                questionsToSave.add(question);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi đọc file Excel: " + e.getMessage(), e);
+        }
+
+        List<Question> savedQuestions = questionRepository.saveAll(questionsToSave);
+        return savedQuestions.stream().map(questionMapper::toResponse).collect(Collectors.toList());
     }
 }
