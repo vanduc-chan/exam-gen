@@ -64,8 +64,8 @@ public class ExportService {
                         qRun.setFontFamily("Times New Roman");
                         qRun.setFontSize(13);
                         String contentStr = eq.getQuestion().getContent();
-                        String qText = "Câu " + (i + 1) + ": " + contentStr + " (" + 
-                            (eq.getScore() != null ? String.format("%.1f", eq.getScore()).replace('.', ',') : "0,0") + "đ)";
+                        String qText = "Câu " + (i + 1) + ": " + contentStr;
+//                                + " (" + (eq.getScore() != null ? String.format("%.1f", eq.getScore()).replace('.', ',') : "0,0") + "đ)";
                         qRun.setText(qText);
 
                         // "ĐÁP ÁN" Header
@@ -150,8 +150,8 @@ public class ExportService {
                         qRun.setFontFamily("Times New Roman");
                         qRun.setFontSize(13);
                         String contentStr = eq.getQuestion().getContent();
-                        String qText = "Câu " + (i + 1) + ": " + contentStr + " (" + 
-                            (eq.getScore() != null ? String.format("%.1f", eq.getScore()).replace('.', ',') : "0,0") + "đ)";
+                        String qText = "Câu " + (i + 1) + ": " + contentStr;
+//                        + " (" + (eq.getScore() != null ? String.format("%.1f", eq.getScore()).replace('.', ',') : "0,0") + "đ)";
                         qRun.setText(qText);
                     }
                     

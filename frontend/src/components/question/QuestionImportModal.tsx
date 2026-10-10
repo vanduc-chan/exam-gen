@@ -117,7 +117,7 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">Nhập câu hỏi từ file Excel</DialogTitle>
         </DialogHeader>
@@ -198,6 +198,7 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
               <AccordionContent className="text-sm text-muted-foreground space-y-1 pb-4">
                 <p>• Cột A: Câu hỏi (Nội dung câu hỏi)</p>
                 <p>• Cột B: Đáp án (Nội dung đáp án, hỗ trợ Alt+Enter xuống dòng)</p>
+                <p>• Cột C: Loại câu hỏi (1: Lý thuyết, 2: Thực hành, 3: Tự luận, 4: Tình huống)</p>
                 <div className="bg-slate-50 p-2 rounded border mt-2 text-xs">
                   <span className="font-semibold text-slate-800">💡 Mẹo nhập đáp án tự động thụt lề đẹp mắt:</span>
                   <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-600">
@@ -206,7 +207,7 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
                     <li>Dòng bắt đầu bằng dấu <code className="bg-slate-200 px-1">-</code>: Nội dung chi tiết / các bước B1, B2 (Thụt lề sâu 0.5 inch y như mẫu Word)</li>
                   </ul>
                 </div>
-                <p className="italic text-xs mt-2">* Các thông tin khác như môn học, độ khó, đối tượng sẽ được áp dụng chung từ form này.</p>
+                <p className="italic text-xs mt-2">* Môn học và Đối tượng sẽ được áp dụng chung từ form này.</p>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

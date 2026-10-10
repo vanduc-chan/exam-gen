@@ -27,4 +27,13 @@ export const departmentService = {
     const response = await api.delete<ApiResponse<void>>(`/departments/${id}`);
     return response.data;
   },
+
+  importExcel: async (formData: FormData) => {
+    const response = await api.post<ApiResponse<void>>('/departments/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
 };

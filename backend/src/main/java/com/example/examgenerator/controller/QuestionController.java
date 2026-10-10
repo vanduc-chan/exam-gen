@@ -39,13 +39,12 @@ public class QuestionController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) UUID subjectId,
-            @RequestParam(required = false) UUID courseId,
+            @RequestParam(required = false) List<UUID> courseIds,
             @RequestParam(required = false) QuestionType type,
-            @RequestParam(required = false) DifficultyLevel level,
             @RequestParam(required = false) String search) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "code"));
-        return ResponseEntity.ok(ApiResponse.success(questionService.getQuestions(subjectId, courseId, type, level, search, pageable)));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "code"));
+        return ResponseEntity.ok(ApiResponse.success(questionService.getQuestions(subjectId, courseIds, type, search, pageable)));
     }
 
     @GetMapping("/{id}")

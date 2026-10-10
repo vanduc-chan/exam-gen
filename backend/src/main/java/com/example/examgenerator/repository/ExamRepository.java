@@ -22,4 +22,6 @@ public interface ExamRepository extends JpaRepository<Exam, UUID> {
             @Param("courseId") UUID courseId,
             @Param("search") String search,
             Pageable pageable);
+
+    boolean existsByCode(String code);
 }

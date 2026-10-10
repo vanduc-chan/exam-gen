@@ -1,6 +1,8 @@
 package com.example.examgenerator.controller;
 
 import com.example.examgenerator.service.ExportService;
+import com.example.examgenerator.repository.ExamRepository;
+import com.example.examgenerator.entity.Exam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -16,6 +18,7 @@ import java.util.UUID;
 public class ExportController {
 
     private final ExportService exportService;
+    private final ExamRepository examRepository;
 
     @GetMapping("/exams/{id}/word")
     public ResponseEntity<byte[]> exportExamToWord(
@@ -23,9 +26,20 @@ public class ExportController {
             @RequestParam(defaultValue = "false") boolean includeAnswers) throws IOException {
         byte[] docBytes = exportService.exportExamToWord(id, includeAnswers);
         
+        Exam exam = examRepository.findById(id).orElse(null);
+        String filename = (exam != null && exam.getCode() != null) ? exam.getCode() : "exams";
+        if (includeAnswers) {
+            filename += "_answers.docx";
+        } else {
+            filename += ".docx";
+        }
+        
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-        headers.setContentDispositionFormData("attachment", includeAnswers ? "exams-answers.docx" : "exams.docx");
+        org.springframework.http.ContentDisposition contentDisposition = org.springframework.http.ContentDisposition.builder("attachment")
+                .filename(filename, java.nio.charset.StandardCharsets.UTF_8)
+                .build();
+        headers.setContentDisposition(contentDisposition);
         
         return ResponseEntity.ok()
                 .headers(headers)

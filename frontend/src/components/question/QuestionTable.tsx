@@ -1,5 +1,5 @@
 import React from 'react';
-import { Question, QuestionType, DifficultyLevel } from '@/types/question';
+import { Question, QuestionType } from '@/types/question';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import {
@@ -22,21 +22,12 @@ interface QuestionTableProps {
   onDelete: (id: string) => void;
 }
 
-const getDifficultyLabel = (level: DifficultyLevel) => {
-  switch (level) {
-    case DifficultyLevel.EASY: return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Dễ</Badge>;
-    case DifficultyLevel.MEDIUM: return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Trung bình</Badge>;
-    case DifficultyLevel.HARD: return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Khó</Badge>;
-    default: return level;
-  }
-};
-
 const getTypeLabel = (type: QuestionType) => {
   switch (type) {
-    case QuestionType.LY_THUYET: return 'Lý thuyết';
-    case QuestionType.THUC_HANH: return 'Thực hành';
-    case QuestionType.TU_LUAN: return 'Tự luận';
-    case QuestionType.TINH_HUONG: return 'Tình huống';
+    case QuestionType.LY_THUYET: return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">Lý thuyết</Badge>;
+    case QuestionType.THUC_HANH: return <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">Thực hành</Badge>;
+    case QuestionType.TU_LUAN: return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">Tự luận</Badge>;
+    case QuestionType.TINH_HUONG: return <Badge variant="outline" className="bg-cyan-100 text-cyan-800 border-cyan-200">Tình huống</Badge>;
     default: return type;
   }
 };
@@ -58,11 +49,10 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
               />
             </TableHead>
             <TableHead className="w-24">Mã CH</TableHead>
-            <TableHead>Nội dung</TableHead>
+            <TableHead className="w-[500px]">Nội dung</TableHead>
             <TableHead>Môn học</TableHead>
             <TableHead>Đối tượng</TableHead>
             <TableHead>Loại</TableHead>
-            <TableHead>Độ khó</TableHead>
             <TableHead className="text-right w-24">Hành động</TableHead>
           </TableRow>
         </TableHeader>
@@ -76,7 +66,7 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
                 />
               </TableCell>
               <TableCell className="font-medium text-xs text-muted-foreground">{q.code}</TableCell>
-              <TableCell>
+              <TableCell className="max-w-[200px]">
                 <div className="line-clamp-2" title={q.content}>
                   {q.content}
                 </div>
@@ -96,7 +86,6 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
                 </div>
               </TableCell>
               <TableCell>{getTypeLabel(q.type)}</TableCell>
-              <TableCell>{getDifficultyLabel(q.difficultyLevel)}</TableCell>
               <TableCell className="text-right">
                 <Button variant="ghost" size="icon" onClick={() => onEdit(q.id)}>
                   <Edit className="h-4 w-4" />
@@ -109,7 +98,7 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
           ))}
           {questions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                 Không tìm thấy câu hỏi nào
               </TableCell>
             </TableRow>

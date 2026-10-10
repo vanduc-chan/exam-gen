@@ -19,15 +19,13 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
 
     @Query("SELECT DISTINCT q FROM Question q LEFT JOIN q.courses c WHERE " +
            "(:subjectId IS NULL OR q.subject.id = :subjectId) AND " +
-           "(:courseId IS NULL OR c.id = :courseId) AND " +
+           "(:courseIds IS NULL OR c.id IN :courseIds) AND " +
            "(:type IS NULL OR q.type = :type) AND " +
-           "(:level IS NULL OR q.difficultyLevel = :level) AND " +
            "(LOWER(q.content) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(q.code) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Question> findQuestionsWithFilters(
             @Param("subjectId") UUID subjectId,
-            @Param("courseId") UUID courseId,
+            @Param("courseIds") java.util.List<UUID> courseIds,
             @Param("type") QuestionType type,
-            @Param("level") DifficultyLevel level,
             @Param("search") String search,
             Pageable pageable);
 

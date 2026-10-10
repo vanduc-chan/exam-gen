@@ -45,9 +45,12 @@ public class QuestionService {
     private final QuestionSequenceService questionSequenceService;
 
     @Transactional(readOnly = true)
-    public Page<QuestionResponse> getQuestions(UUID subjectId, UUID courseId, QuestionType type, DifficultyLevel level, String search, Pageable pageable) {
+    public Page<QuestionResponse> getQuestions(UUID subjectId, List<UUID> courseIds, QuestionType type, String search, Pageable pageable) {
         String safeSearch = (search == null) ? "" : search;
-        return questionRepository.findQuestionsWithFilters(subjectId, courseId, type, level, safeSearch, pageable)
+        if (courseIds != null && courseIds.isEmpty()) {
+            courseIds = null;
+        }
+        return questionRepository.findQuestionsWithFilters(subjectId, courseIds, type, safeSearch, pageable)
                 .map(questionMapper::toResponse);
     }
 
@@ -155,6 +158,7 @@ public class QuestionService {
 
                 Cell questionCell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                 Cell answerCell = row.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                Cell typeCell = row.getCell(2, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
 
                 if (questionCell == null) {
                     continue; 
@@ -166,11 +170,22 @@ public class QuestionService {
                 }
                 
                 String answer = answerCell != null ? dataFormatter.formatCellValue(answerCell).trim() : "";
+                
+                QuestionType rowType = type; // default from param
+                if (typeCell != null) {
+                    String typeVal = dataFormatter.formatCellValue(typeCell).trim();
+                    switch (typeVal) {
+                        case "1": rowType = QuestionType.LY_THUYET; break;
+                        case "2": rowType = QuestionType.THUC_HANH; break;
+                        case "3": rowType = QuestionType.TU_LUAN; break;
+                        case "4": rowType = QuestionType.TINH_HUONG; break;
+                    }
+                }
 
                 Question question = new Question();
                 question.setContent(content);
                 question.setAnswer(answer);
-                question.setType(type);
+                question.setType(rowType);
                 question.setDifficultyLevel(difficultyLevel);
                 question.setScore(score);
                 question.setSubject(subject);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Question } from '@/types/question';
 import { Subject } from '@/types/subject';
 import { questionService } from '@/services/questionService';
@@ -32,8 +32,20 @@ const QuestionListPage = () => {
   
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<any>({});
-  const [page, setPage] = useState(0);
+  
+  const initialPage = parseInt(searchParams.get('page') || '0', 10);
+  const [page, setPageState] = useState(initialPage);
+  
+  const setPage = (newPageOrFn: number | ((p: number) => number)) => {
+    const newPage = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
+    setPageState(newPage);
+    setSearchParams(prev => {
+      prev.set('page', newPage.toString());
+      return prev;
+    }, { replace: true });
+  };
   const [totalPages, setTotalPages] = useState(0);
   const size = 10;
 
@@ -150,6 +162,7 @@ const QuestionListPage = () => {
 
       <QuestionFilter 
         subjects={subjects} 
+        courses={courses}
         filters={filters} 
         onFilterChange={handleFilterChange} 
       />

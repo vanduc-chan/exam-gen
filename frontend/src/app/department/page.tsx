@@ -3,14 +3,16 @@ import { Department, DepartmentRequest } from '@/types/department';
 import { departmentService } from '@/services/departmentService';
 import DepartmentTable from '@/components/department/DepartmentTable';
 import DepartmentForm from '@/components/department/DepartmentForm';
+import DepartmentImportModal from '@/components/department/DepartmentImportModal';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DepartmentPage = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -75,9 +77,14 @@ const DepartmentPage = () => {
     <div className="p-8 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Quản lý Khoa</h2>
-        <Button onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Thêm mới
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" /> Nhập Excel
+          </Button>
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Thêm mới
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -96,6 +103,12 @@ const DepartmentPage = () => {
         initialData={selectedDept}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+      />
+
+      <DepartmentImportModal
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onSuccess={() => loadDepartments()}
       />
     </div>
   );

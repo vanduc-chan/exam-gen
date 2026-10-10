@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
@@ -81,7 +83,22 @@ public class ExamGeneratorService {
 
         // Create Master Exam record
         Exam exam = examMapper.toEntity(request, subject, course);
-        exam.setCode(subject.getSubjectCode()+ " " + course.getCourseCode() + "-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
+        
+        String deptCode = (subject.getDepartmentGroup() != null && subject.getDepartmentGroup().getDepartment() != null) 
+                          ? subject.getDepartmentGroup().getDepartment().getCode() : "KHOA";
+        String groupCode = subject.getDepartmentGroup() != null ? subject.getDepartmentGroup().getCode() : "BOMON";
+        String subjectCode = subject.getSubjectCode();
+        String courseCode = course.getCourseCode();
+        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("ddMMyy"));
+        
+        String baseCode = String.format("%s.%s.%s.%s.%s", deptCode, groupCode, subjectCode, courseCode, dateStr);
+        String uniqueCode = baseCode;
+        int counter = 1;
+        while (examRepository.existsByCode(uniqueCode)) {
+            uniqueCode = baseCode + String.format("-%02d", counter++);
+        }
+        
+        exam.setCode(uniqueCode);
         exam = examRepository.save(exam);
 
         Set<Set<UUID>> generatedSets = new HashSet<>();

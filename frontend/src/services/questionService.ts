@@ -7,7 +7,7 @@ interface GetQuestionsParams {
   size?: number;
   subjectId?: string;
   type?: QuestionType;
-  level?: DifficultyLevel;
+  courseIds?: string;
   search?: string;
 }
 

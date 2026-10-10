@@ -9,21 +9,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Subject } from '@/types/subject';
-import { QuestionType, DifficultyLevel } from '@/types/question';
+import { Course } from '@/types/course';
+import { QuestionType } from '@/types/question';
 import { useDebounce } from '@/hooks/useDebounce';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 interface QuestionFilterProps {
   subjects: Subject[];
+  courses: Course[];
   onFilterChange: (filters: any) => void;
   filters: {
     subjectId?: string;
     type?: QuestionType;
-    level?: DifficultyLevel;
+    courseIds?: string;
     search?: string;
   };
 }
 
-const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, onFilterChange, filters }) => {
+const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, courses, onFilterChange, filters }) => {
   const [searchTerm, setSearchTerm] = useState(filters.search || '');
   const debouncedSearch = useDebounce(searchTerm, 350);
 
@@ -84,21 +87,13 @@ const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, onFilterChang
           </SelectContent>
         </Select>
       </div>
-      <div className="w-40">
-        <Select 
-          value={filters.level || 'all'} 
-          onValueChange={(val) => onFilterChange({ ...filters, level: val === 'all' ? undefined : val })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Độ khó" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả</SelectItem>
-            <SelectItem value={DifficultyLevel.EASY}>Dễ</SelectItem>
-            <SelectItem value={DifficultyLevel.MEDIUM}>Trung bình</SelectItem>
-            <SelectItem value={DifficultyLevel.HARD}>Khó</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="w-64">
+        <MultiSelect
+          options={courses.map(c => ({ value: c.id, label: c.name }))}
+          value={filters.courseIds ? filters.courseIds.split(',') : []}
+          onChange={(vals) => onFilterChange({ ...filters, courseIds: vals.length > 0 ? vals.join(',') : undefined })}
+          placeholder="Đối tượng"
+        />
       </div>
       <Button variant="outline" onClick={handleClear}>
         Xóa lọc

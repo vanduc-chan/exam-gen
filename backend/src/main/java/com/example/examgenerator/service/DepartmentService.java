@@ -13,12 +13,27 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.io.InputStream;
+import org.springframework.web.multipart.MultipartFile;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import com.example.examgenerator.entity.DepartmentGroup;
+import com.example.examgenerator.entity.Subject;
+
+import com.example.examgenerator.repository.DepartmentGroupRepository;
+import com.example.examgenerator.repository.SubjectRepository;
 
 @Service
 @RequiredArgsConstructor
 public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
+    private final DepartmentGroupRepository departmentGroupRepository;
+    private final SubjectRepository subjectRepository;
     private final DepartmentMapper departmentMapper;
 
     @Transactional(readOnly = true)
@@ -69,6 +84,91 @@ public class DepartmentService {
             departmentRepository.flush();
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw new IllegalArgumentException("Không thể xóa Khoa/Phòng này vì đang có Tổ bộ môn hoặc Môn học liên quan. Vui lòng kiểm tra lại!");
+        }
+    }
+
+    @Transactional
+    public void importDepartmentsFromExcel(MultipartFile file) {
+        DataFormatter dataFormatter = new DataFormatter();
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            boolean isFirstRow = true;
+
+            Department currentDepartment = null;
+            DepartmentGroup currentGroup = null;
+
+            for (Row row : sheet) {
+                if (isFirstRow) {
+                    isFirstRow = false;
+                    continue; // Skip header
+                }
+                
+                if (row.getPhysicalNumberOfCells() == 0) continue;
+
+                Cell deptCodeCell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                Cell deptNameCell = row.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                Cell groupCodeCell = row.getCell(2, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                Cell groupNameCell = row.getCell(3, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                Cell subjectCodeCell = row.getCell(4, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                Cell subjectNameCell = row.getCell(5, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+                String deptCode = deptCodeCell != null ? dataFormatter.formatCellValue(deptCodeCell).trim() : "";
+                String deptName = deptNameCell != null ? dataFormatter.formatCellValue(deptNameCell).trim() : "";
+                String groupCode = groupCodeCell != null ? dataFormatter.formatCellValue(groupCodeCell).trim() : "";
+                String groupName = groupNameCell != null ? dataFormatter.formatCellValue(groupNameCell).trim() : "";
+                String subjectCode = subjectCodeCell != null ? dataFormatter.formatCellValue(subjectCodeCell).trim() : "";
+                String subjectName = subjectNameCell != null ? dataFormatter.formatCellValue(subjectNameCell).trim() : "";
+
+                if (deptCode.isEmpty() && deptName.isEmpty() && groupCode.isEmpty() && groupName.isEmpty() && subjectCode.isEmpty() && subjectName.isEmpty()) {
+                    continue;
+                }
+
+                if (!deptCode.isEmpty() && !deptName.isEmpty()) {
+                    final String dCode = deptCode;
+                    currentDepartment = departmentRepository.findByCode(deptCode)
+                            .orElseGet(() -> {
+                                Department newDept = new Department();
+                                newDept.setCode(dCode);
+                                newDept.setName(deptName);
+                                newDept.setIsActive(true);
+                                return departmentRepository.save(newDept);
+                            });
+                    currentGroup = null; // Reset group when department changes
+                }
+
+                if (currentDepartment == null) continue;
+
+                if (!groupCode.isEmpty() && !groupName.isEmpty()) {
+                    final String gCode = groupCode;
+                    final Department dept = currentDepartment;
+                    currentGroup = departmentGroupRepository.findByCode(groupCode)
+                            .orElseGet(() -> {
+                                DepartmentGroup newGroup = new DepartmentGroup();
+                                newGroup.setCode(gCode);
+                                newGroup.setName(groupName);
+                                newGroup.setDepartment(dept);
+                                newGroup.setIsActive(true);
+                                return departmentGroupRepository.save(newGroup);
+                            });
+                }
+
+                if (currentGroup == null) continue;
+
+                if (!subjectCode.isEmpty() && !subjectName.isEmpty()) {
+                    final String sCode = subjectCode;
+                    final DepartmentGroup grp = currentGroup;
+                    subjectRepository.findBySubjectCode(subjectCode)
+                            .orElseGet(() -> {
+                                Subject newSubject = new Subject();
+                                newSubject.setSubjectCode(sCode);
+                                newSubject.setSubjectName(subjectName);
+                                newSubject.setDepartmentGroup(grp);
+                                return subjectRepository.save(newSubject);
+                            });
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi đọc file Excel: " + e.getMessage(), e);
         }
     }
 }

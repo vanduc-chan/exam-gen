@@ -53,4 +53,10 @@ public class DepartmentController {
         departmentService.deleteDepartment(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa khoa thành công", null));
     }
+
+    @PostMapping("/import")
+    public ResponseEntity<ApiResponse<Void>> importDepartments(@org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        departmentService.importDepartmentsFromExcel(file);
+        return ResponseEntity.ok(ApiResponse.success("Nhập dữ liệu khoa thành công", null));
+    }
 }
