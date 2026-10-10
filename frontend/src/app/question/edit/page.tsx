@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { questionService } from '@/services/questionService';
 import { subjectService } from '@/services/subjectService';
-import { questionCategoryService } from '@/services/questionCategoryService';
+import { courseService } from '@/services/courseService';
 import QuestionForm from '@/components/question/QuestionForm';
 import { Subject } from '@/types/subject';
-import { QuestionCategory } from '@/types/questionCategory';
+import { Course } from '@/types/course';
 import { toast } from 'sonner';
 
 const QuestionEditPage = () => {
@@ -14,7 +14,7 @@ const QuestionEditPage = () => {
   
   const [initialData, setInitialData] = useState<any>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<QuestionCategory[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,11 +26,11 @@ const QuestionEditPage = () => {
         const [qRes, subRes, catRes] = await Promise.all([
           questionService.getById(id),
           subjectService.getAll(),
-          questionCategoryService.getAll(),
+          courseService.getAll(),
         ]);
         setInitialData(qRes.data);
         setSubjects(subRes.data.filter(s => s.isActive !== false));
-        setCategories(catRes.data);
+        setCourses(catRes.data);
       } catch (error) {
         toast.error('Lỗi khi tải dữ liệu câu hỏi');
         navigate('/questions');
@@ -65,7 +65,7 @@ const QuestionEditPage = () => {
         <QuestionForm 
           initialData={initialData}
           subjects={subjects} 
-          categories={categories} 
+          courses={courses} 
           onSubmit={handleSubmit} 
           isSubmitting={isSubmitting} 
         />

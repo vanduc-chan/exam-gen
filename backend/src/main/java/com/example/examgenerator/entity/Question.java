@@ -44,13 +44,19 @@ public class Question extends BaseEntity {
     @Column(unique = true, length = 100)
     private String code;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private QuestionCategory category;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
+
+    @Builder.Default
+    @jakarta.persistence.ManyToMany(fetch = FetchType.LAZY)
+    @jakarta.persistence.JoinTable(
+        name = "eg_question_course",
+        joinColumns = @jakarta.persistence.JoinColumn(name = "question_id"),
+        inverseJoinColumns = @jakarta.persistence.JoinColumn(name = "course_id")
+    )
+    private java.util.Set<Course> courses = new java.util.HashSet<>();
 
     @Column(columnDefinition = "TEXT")
     private String answer;

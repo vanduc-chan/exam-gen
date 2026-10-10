@@ -1,3 +1,5 @@
+import { Course } from './course';
+
 export enum QuestionType {
   LY_THUYET = 'LY_THUYET',
   THUC_HANH = 'THUC_HANH',
@@ -20,10 +22,9 @@ export interface Question {
   score: number;
   answer?: string;
   mediaUrl?: string;
-  categoryId: string;
-  categoryName: string;
   subjectId: string;
   subjectName: string;
+  courses?: Course[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -37,7 +38,9 @@ export interface QuestionRequest {
   score?: number;
   answer?: string;
   mediaUrl?: string;
-  categoryId: string;
   subjectId: string;
+  courseIds?: string[];
   isActive?: boolean;
 }
+
+

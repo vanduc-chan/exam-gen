@@ -64,6 +64,11 @@ public class DepartmentService {
         if (!departmentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Khoa không tồn tại với ID: " + id);
         }
-        departmentRepository.deleteById(id);
+        try {
+            departmentRepository.deleteById(id);
+            departmentRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Không thể xóa Khoa/Phòng này vì đang có Tổ bộ môn hoặc Môn học liên quan. Vui lòng kiểm tra lại!");
+        }
     }
 }

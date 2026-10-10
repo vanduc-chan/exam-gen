@@ -84,6 +84,11 @@ public class SubjectService {
         if (!subjectRepository.existsById(id)) {
             throw new ResourceNotFoundException("Môn học không tồn tại với ID: " + id);
         }
-        subjectRepository.deleteById(id);
+        try {
+            subjectRepository.deleteById(id);
+            subjectRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Không thể xóa Môn học này vì đang có Câu hỏi hoặc Đề thi liên quan. Vui lòng kiểm tra lại!");
+        }
     }
 }

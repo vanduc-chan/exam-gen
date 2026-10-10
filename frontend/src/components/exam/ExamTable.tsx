@@ -1,7 +1,7 @@
 import React from 'react';
 import { Exam } from '@/types/exam';
 import { Button } from '@/components/ui/button';
-import { Trash2, Download, Eye } from 'lucide-react';
+import { Trash2, Download, Eye, FileText, FileCheck } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -10,6 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
@@ -17,7 +23,7 @@ interface ExamTableProps {
   exams: Exam[];
   onDelete: (id: string) => void;
   onView: (id: string) => void;
-  onExport: (id: string) => void;
+  onExport: (id: string, includeAnswers?: boolean) => void;
 }
 
 const getStatusBadge = (status: string) => {
@@ -61,9 +67,21 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
                 <Button variant="ghost" size="icon" onClick={() => onView(exam.id)} title="Xem chi tiết">
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => onExport(exam.id)} title="Xuất file (Word)">
-                  <Download className="h-4 w-4 text-blue-500" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" title="Xuất file Word">
+                      <Download className="h-4 w-4 text-blue-500" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onExport(exam.id, false)} className="cursor-pointer">
+                      <FileText className="mr-2 h-4 w-4 text-blue-500" /> Xuất Đề thi (không đáp án)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onExport(exam.id, true)} className="cursor-pointer">
+                      <FileCheck className="mr-2 h-4 w-4 text-green-600" /> Xuất Đề thi (kèm đáp án)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="ghost" size="icon" onClick={() => onDelete(exam.id)} title="Xóa">
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>

@@ -31,8 +31,9 @@ export const examService = {
     return response.data;
   },
 
-  exportToWord: async (id: string) => {
-    const response = await api.get(`/export/exams/${id}/word`, {
+  exportToWord: async (id: string, includeAnswers: boolean = false) => {
+    const url = includeAnswers ? `/export/exams/${id}/word?includeAnswers=true` : `/export/exams/${id}/word`;
+    const response = await api.get(url, {
       responseType: 'blob',
     });
     return response.data;

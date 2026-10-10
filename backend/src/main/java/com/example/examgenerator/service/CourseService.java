@@ -64,6 +64,11 @@ public class CourseService {
         if (!courseRepository.existsById(id)) {
             throw new ResourceNotFoundException("Đối tượng thi không tồn tại với ID: " + id);
         }
-        courseRepository.deleteById(id);
+        try {
+            courseRepository.deleteById(id);
+            courseRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Không thể xóa Đối tượng thi này vì đang có Đợt sinh đề sử dụng. Vui lòng kiểm tra lại!");
+        }
     }
 }

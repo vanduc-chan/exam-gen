@@ -4,6 +4,8 @@ import { Question } from '@/types/question';
 import { Subject } from '@/types/subject';
 import { questionService } from '@/services/questionService';
 import { subjectService } from '@/services/subjectService';
+import { courseService } from '@/services/courseService';
+import { Course } from '@/types/course';
 import api from '@/lib/api';
 import QuestionTable from '@/components/question/QuestionTable';
 import QuestionFilter from '@/components/question/QuestionFilter';
@@ -24,7 +26,7 @@ const QuestionListPage = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportOpen, setIsImportOpen] = useState(false);
   
@@ -61,18 +63,18 @@ const QuestionListPage = () => {
     }
   };
 
-  const loadCategories = async () => {
+  const loadCourses = async () => {
     try {
-      const res = await api.get('/question-categories');
-      setCategories(res.data.data.content || res.data.data);
+      const res = await courseService.getAll();
+      setCourses(res.data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('Error loading courses:', error);
     }
   };
 
   useEffect(() => {
     loadSubjects();
-    loadCategories();
+    loadCourses();
   }, []);
 
   useEffect(() => {
@@ -205,7 +207,7 @@ const QuestionListPage = () => {
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         subjects={subjects}
-        categories={categories}
+        courses={courses}
         onSuccess={() => {
           setPage(0);
           loadData();

@@ -2,14 +2,14 @@ package com.example.examgenerator.service;
 
 import com.example.examgenerator.dto.request.QuestionRequest;
 import com.example.examgenerator.dto.response.QuestionResponse;
+import com.example.examgenerator.entity.Course;
 import com.example.examgenerator.entity.Question;
-import com.example.examgenerator.entity.QuestionCategory;
 import com.example.examgenerator.entity.Subject;
 import com.example.examgenerator.enumerate.DifficultyLevel;
 import com.example.examgenerator.enumerate.QuestionType;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.QuestionMapper;
-import com.example.examgenerator.repository.QuestionCategoryRepository;
+import com.example.examgenerator.repository.CourseRepository;
 import com.example.examgenerator.repository.QuestionRepository;
 import com.example.examgenerator.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.io.InputStream;
@@ -38,14 +40,14 @@ public class QuestionService {
 
     private final QuestionRepository questionRepository;
     private final SubjectRepository subjectRepository;
-    private final QuestionCategoryRepository questionCategoryRepository;
+    private final CourseRepository courseRepository;
     private final QuestionMapper questionMapper;
     private final QuestionSequenceService questionSequenceService;
 
     @Transactional(readOnly = true)
-    public Page<QuestionResponse> getQuestions(UUID subjectId, QuestionType type, DifficultyLevel level, String search, Pageable pageable) {
+    public Page<QuestionResponse> getQuestions(UUID subjectId, UUID courseId, QuestionType type, DifficultyLevel level, String search, Pageable pageable) {
         String safeSearch = (search == null) ? "" : search;
-        return questionRepository.findQuestionsWithFilters(subjectId, type, level, safeSearch, pageable)
+        return questionRepository.findQuestionsWithFilters(subjectId, courseId, type, level, safeSearch, pageable)
                 .map(questionMapper::toResponse);
     }
 
@@ -65,11 +67,13 @@ public class QuestionService {
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại với ID: " + request.getSubjectId()));
         
-        QuestionCategory category = questionCategoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Phân loại câu hỏi không tồn tại với ID: " + request.getCategoryId()));
-
-        Question question = questionMapper.toEntity(request, category, subject);
+        Question question = questionMapper.toEntity(request, subject);
         
+        if (request.getCourseIds() != null && !request.getCourseIds().isEmpty()) {
+            List<Course> courses = courseRepository.findAllById(request.getCourseIds());
+            question.setCourses(new HashSet<>(courses));
+        }
+
         // Auto gen code if missing: <Mã môn học>-<Số thứ tự câu hỏi>
         if (question.getCode() == null || question.getCode().trim().isEmpty()) {
             Long nextSeq = questionSequenceService.getNextSequenceValue(subject.getSubjectCode());
@@ -93,17 +97,25 @@ public class QuestionService {
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại với ID: " + request.getSubjectId()));
         
-        QuestionCategory category = questionCategoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Phân loại câu hỏi không tồn tại với ID: " + request.getCategoryId()));
+        questionMapper.updateEntityFromRequest(question, request, subject);
+        
+        if (request.getCourseIds() != null) {
+            List<Course> courses = courseRepository.findAllById(request.getCourseIds());
+            question.setCourses(new HashSet<>(courses));
+        }
 
-        questionMapper.updateEntityFromRequest(question, request, category, subject);
         question = questionRepository.save(question);
         return questionMapper.toResponse(question);
     }
 
     @Transactional
     public void deleteQuestions(List<UUID> ids) {
-        questionRepository.deleteAllById(ids);
+        try {
+            questionRepository.deleteAllById(ids);
+            questionRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Không thể xóa câu hỏi vì câu hỏi đã nằm trong đề thi/kỳ thi. Vui lòng kiểm tra lại!");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -112,12 +124,21 @@ public class QuestionService {
     }
 
     @Transactional
-    public List<QuestionResponse> importQuestionsFromExcel(MultipartFile file, UUID subjectId, UUID categoryId, QuestionType type, DifficultyLevel difficultyLevel, Double score) {
+    public List<QuestionResponse> importQuestionsFromExcel(
+            MultipartFile file, 
+            UUID subjectId, 
+            List<UUID> courseIds, 
+            QuestionType type, 
+            DifficultyLevel difficultyLevel, 
+            Double score) {
+        
         Subject subject = subjectRepository.findById(subjectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại với ID: " + subjectId));
         
-        QuestionCategory category = questionCategoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Phân loại câu hỏi không tồn tại với ID: " + categoryId));
+        Set<Course> courses = new HashSet<>();
+        if (courseIds != null && !courseIds.isEmpty()) {
+            courses = new HashSet<>(courseRepository.findAllById(courseIds));
+        }
 
         List<Question> questionsToSave = new ArrayList<>();
         DataFormatter dataFormatter = new DataFormatter();
@@ -152,8 +173,8 @@ public class QuestionService {
                 question.setType(type);
                 question.setDifficultyLevel(difficultyLevel);
                 question.setScore(score);
-                question.setCategory(category);
                 question.setSubject(subject);
+                question.setCourses(new HashSet<>(courses));
                 question.setIsActive(true);
                 
                 Long nextSeq = questionSequenceService.getNextSequenceValue(subject.getSubjectCode());

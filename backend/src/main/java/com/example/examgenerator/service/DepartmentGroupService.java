@@ -78,6 +78,11 @@ public class DepartmentGroupService {
         if (!departmentGroupRepository.existsById(id)) {
             throw new ResourceNotFoundException("Tổ bộ môn không tồn tại với ID: " + id);
         }
-        departmentGroupRepository.deleteById(id);
+        try {
+            departmentGroupRepository.deleteById(id);
+            departmentGroupRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Không thể xóa Tổ bộ môn này vì đang có Môn học thuộc Tổ bộ môn. Vui lòng kiểm tra lại!");
+        }
     }
 }

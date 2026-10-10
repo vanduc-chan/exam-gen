@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import { examService } from '@/services/examService';
 import { subjectService } from '@/services/subjectService';
 import { courseService } from '@/services/courseService';
-import { questionService } from '@/services/questionService';
 import { ExamStructureType } from '@/types/exam';
 import { Subject } from '@/types/subject';
 import { Course } from '@/types/course';

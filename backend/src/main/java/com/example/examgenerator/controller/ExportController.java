@@ -5,10 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -21,15 +18,22 @@ public class ExportController {
     private final ExportService exportService;
 
     @GetMapping("/exams/{id}/word")
-    public ResponseEntity<byte[]> exportExamToWord(@PathVariable UUID id) throws IOException {
-        byte[] docBytes = exportService.exportExamToWord(id);
+    public ResponseEntity<byte[]> exportExamToWord(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean includeAnswers) throws IOException {
+        byte[] docBytes = exportService.exportExamToWord(id, includeAnswers);
         
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-        headers.setContentDispositionFormData("attachment", "exams.docx");
+        headers.setContentDispositionFormData("attachment", includeAnswers ? "exams-answers.docx" : "exams.docx");
         
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(docBytes);
+    }
+
+    @GetMapping("/exams/{id}/word-answers")
+    public ResponseEntity<byte[]> exportExamWithAnswersToWord(@PathVariable UUID id) throws IOException {
+        return exportExamToWord(id, true);
     }
 }

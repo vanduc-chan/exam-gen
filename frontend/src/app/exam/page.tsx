@@ -9,7 +9,7 @@ import { courseService } from '@/services/courseService';
 import ExamTable from '@/components/exam/ExamTable';
 import ExamFilter from '@/components/exam/ExamFilter';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, FileText, FileCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Pagination,
@@ -92,21 +92,21 @@ const ExamPage = () => {
     toast.info('Tính năng xem chi tiết sẽ được cập nhật trong Phase 5');
   };
 
-  const handleExport = async (id: string) => {
+  const handleExport = async (id: string, includeAnswers: boolean = false) => {
+    const toastId = toast.loading(includeAnswers ? 'Đang tạo file Word (kèm đáp án)...' : 'Đang tạo file Word...');
     try {
-      toast.info('Đang tạo file Word...', { id: 'export' });
-      const blob = await examService.exportToWord(id);
+      const blob = await examService.exportToWord(id, includeAnswers);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `exams-${id.substring(0,8)}.docx`);
+      link.setAttribute('download', includeAnswers ? `exams-answers-${id.substring(0,8)}.docx` : `exams-${id.substring(0,8)}.docx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success('Tải xuống thành công', { id: 'export' });
+      toast.success(includeAnswers ? 'Tải xuống đề thi (kèm đáp án) thành công' : 'Tải xuống đề thi thành công', { id: toastId });
       loadData(); // Refresh to get EXPORTED status
     } catch (error: any) {
-      toast.error('Lỗi khi xuất dữ liệu', { id: 'export' });
+      toast.error(error.message || 'Lỗi khi xuất dữ liệu', { id: toastId });
     }
   };
 

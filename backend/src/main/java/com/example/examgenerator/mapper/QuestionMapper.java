@@ -3,16 +3,19 @@ package com.example.examgenerator.mapper;
 import com.example.examgenerator.dto.request.QuestionRequest;
 import com.example.examgenerator.dto.response.QuestionResponse;
 import com.example.examgenerator.entity.Question;
-import com.example.examgenerator.entity.QuestionCategory;
 import com.example.examgenerator.entity.Subject;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class QuestionMapper {
 
-    public Question toEntity(QuestionRequest request, QuestionCategory category, Subject subject) {
+    private final CourseMapper courseMapper;
+
+    public Question toEntity(QuestionRequest request, Subject subject) {
         if (request == null) {
             return null;
         }
@@ -25,7 +28,6 @@ public class QuestionMapper {
                 .score(request.getScore())
                 .answer(request.getAnswer())
                 .mediaUrl(request.getMediaUrl())
-                .category(category)
                 .subject(subject)
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                 .build();
@@ -45,17 +47,18 @@ public class QuestionMapper {
                 .score(entity.getScore())
                 .answer(entity.getAnswer())
                 .mediaUrl(entity.getMediaUrl())
-                .categoryId(entity.getCategory() != null ? entity.getCategory().getId() : null)
-                .categoryName(entity.getCategory() != null ? entity.getCategory().getName() : null)
                 .subjectId(entity.getSubject() != null ? entity.getSubject().getId() : null)
                 .subjectName(entity.getSubject() != null ? entity.getSubject().getSubjectName() : null)
+                .courses(entity.getCourses() != null 
+                        ? entity.getCourses().stream().map(courseMapper::toResponse).collect(Collectors.toList()) 
+                        : null)
                 .isActive(entity.getIsActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 
-    public void updateEntityFromRequest(Question entity, QuestionRequest request, QuestionCategory category, Subject subject) {
+    public void updateEntityFromRequest(Question entity, QuestionRequest request, Subject subject) {
         if (request == null || entity == null) {
             return;
         }
@@ -65,7 +68,6 @@ public class QuestionMapper {
         entity.setScore(request.getScore());
         entity.setAnswer(request.getAnswer());
         entity.setMediaUrl(request.getMediaUrl());
-        entity.setCategory(category);
         entity.setSubject(subject);
         if (request.getCode() != null) {
             entity.setCode(request.getCode());

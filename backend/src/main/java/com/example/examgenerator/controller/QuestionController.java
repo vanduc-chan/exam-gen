@@ -39,12 +39,13 @@ public class QuestionController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) UUID subjectId,
+            @RequestParam(required = false) UUID courseId,
             @RequestParam(required = false) QuestionType type,
             @RequestParam(required = false) DifficultyLevel level,
             @RequestParam(required = false) String search) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return ResponseEntity.ok(ApiResponse.success(questionService.getQuestions(subjectId, type, level, search, pageable)));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "code"));
+        return ResponseEntity.ok(ApiResponse.success(questionService.getQuestions(subjectId, courseId, type, level, search, pageable)));
     }
 
     @GetMapping("/{id}")
@@ -81,13 +82,13 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> importQuestions(
             @RequestParam("file") MultipartFile file,
             @RequestParam("subjectId") UUID subjectId,
-            @RequestParam("categoryId") UUID categoryId,
-            @RequestParam("type") QuestionType type,
-            @RequestParam("difficultyLevel") DifficultyLevel difficultyLevel,
+            @RequestParam(value = "courseIds", required = false) List<UUID> courseIds,
+            @RequestParam(value = "type", defaultValue = "TU_LUAN") QuestionType type,
+            @RequestParam(value = "difficultyLevel", defaultValue = "EASY") DifficultyLevel difficultyLevel,
             @RequestParam(value = "score", required = false) Double score) {
         
         List<QuestionResponse> importedQuestions = questionService.importQuestionsFromExcel(
-                file, subjectId, categoryId, type, difficultyLevel, score);
+                file, subjectId, courseIds, type, difficultyLevel, score);
         return ResponseEntity.ok(ApiResponse.success("Nhập câu hỏi thành công", importedQuestions));
     }
 }

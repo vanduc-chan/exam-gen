@@ -8,14 +8,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Subject } from '@/types/subject';
+import { Course } from '@/types/course';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Upload, X, File, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -25,13 +21,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { questionService } from '@/services/questionService';
-import { QuestionCategory } from '@/types/questionCategory';
 
 interface QuestionImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subjects: Subject[];
-  categories: QuestionCategory[];
+  courses: Course[];
   onSuccess: () => void;
 }
 
@@ -39,11 +34,11 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
   open,
   onOpenChange,
   subjects,
-  categories,
+  courses,
   onSuccess
 }) => {
   const [subjectId, setSubjectId] = useState<string>('');
-  const [categoryId, setCategoryId] = useState<string>('');
+  const [courseIds, setCourseIds] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,8 +82,8 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
       toast.error('Vui lòng chọn môn học');
       return;
     }
-    if (!categoryId) {
-      toast.error('Vui lòng chọn danh mục');
+    if (courseIds.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một đối tượng');
       return;
     }
     if (!file) {
@@ -101,7 +96,7 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
       const formData = new FormData();
       formData.append('file', file);
       formData.append('subjectId', subjectId);
-      formData.append('categoryId', categoryId);
+      courseIds.forEach(id => formData.append('courseIds', id));
       formData.append('type', 'TU_LUAN'); // default
       formData.append('difficultyLevel', 'EASY'); // default
 
@@ -112,7 +107,7 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
       onOpenChange(false);
       setFile(null);
       setSubjectId('');
-      setCategoryId('');
+      setCourseIds([]);
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || 'Lỗi khi nhập câu hỏi');
     } finally {
@@ -146,19 +141,13 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-base">Chọn danh mục (Chủ đề)</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn danh mục" />
-              </SelectTrigger>
-              <SelectContent className="z-[9999]">
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="text-base">Chọn đối tượng (Course)</Label>
+            <MultiSelect
+              options={courses.map(c => ({ value: c.id, label: c.name }))}
+              value={courseIds}
+              onChange={setCourseIds}
+              placeholder="Chọn đối tượng..."
+            />
           </div>
 
           {/* Chọn file */}
@@ -208,8 +197,16 @@ const QuestionImportModal: React.FC<QuestionImportModalProps> = ({
               </AccordionTrigger>
               <AccordionContent className="text-sm text-muted-foreground space-y-1 pb-4">
                 <p>• Cột A: Câu hỏi (Nội dung câu hỏi)</p>
-                <p>• Cột B: Đáp án (Nội dung đáp án, hỗ trợ xuống dòng)</p>
-                <p className="italic text-xs mt-2">* Các thông tin khác như môn học, độ khó, danh mục sẽ được áp dụng chung từ form này.</p>
+                <p>• Cột B: Đáp án (Nội dung đáp án, hỗ trợ Alt+Enter xuống dòng)</p>
+                <div className="bg-slate-50 p-2 rounded border mt-2 text-xs">
+                  <span className="font-semibold text-slate-800">💡 Mẹo nhập đáp án tự động thụt lề đẹp mắt:</span>
+                  <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-600">
+                    <li>Dòng 1: Tiêu đề đáp án (Hệ thống tự động in đậm)</li>
+                    <li>Dòng bắt đầu bằng <code className="bg-slate-200 px-1">a)</code>, <code className="bg-slate-200 px-1">b)</code>: Tên mục/các bước (Thụt lề 0.25 inch)</li>
+                    <li>Dòng bắt đầu bằng dấu <code className="bg-slate-200 px-1">-</code>: Nội dung chi tiết / các bước B1, B2 (Thụt lề sâu 0.5 inch y như mẫu Word)</li>
+                  </ul>
+                </div>
+                <p className="italic text-xs mt-2">* Các thông tin khác như môn học, độ khó, đối tượng sẽ được áp dụng chung từ form này.</p>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

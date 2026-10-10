@@ -27,11 +27,10 @@ public class QuestionRequest {
 
     private String mediaUrl;
 
-    @NotNull(message = "Danh mục không được để trống")
-    private UUID categoryId;
-
     @NotNull(message = "Môn học không được để trống")
     private UUID subjectId;
+
+    private java.util.List<UUID> courseIds;
 
     private Boolean isActive = true;
 }

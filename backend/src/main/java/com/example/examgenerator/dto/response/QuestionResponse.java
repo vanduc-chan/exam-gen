@@ -19,10 +19,9 @@ public class QuestionResponse {
     private Double score;
     private String answer;
     private String mediaUrl;
-    private UUID categoryId;
-    private String categoryName;
     private UUID subjectId;
     private String subjectName;
+    private java.util.List<CourseResponse> courses;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

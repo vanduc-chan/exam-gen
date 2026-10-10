@@ -60,6 +60,7 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
             <TableHead className="w-24">Mã CH</TableHead>
             <TableHead>Nội dung</TableHead>
             <TableHead>Môn học</TableHead>
+            <TableHead>Đối tượng</TableHead>
             <TableHead>Loại</TableHead>
             <TableHead>Độ khó</TableHead>
             <TableHead className="text-right w-24">Hành động</TableHead>
@@ -81,6 +82,19 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
                 </div>
               </TableCell>
               <TableCell>{q.subjectName}</TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {q.courses && q.courses.length > 0 ? (
+                    q.courses.map(c => (
+                      <Badge key={c.id} variant="secondary" className="text-xs">
+                        {c.name}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
+                </div>
+              </TableCell>
               <TableCell>{getTypeLabel(q.type)}</TableCell>
               <TableCell>{getDifficultyLabel(q.difficultyLevel)}</TableCell>
               <TableCell className="text-right">
@@ -95,7 +109,7 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
           ))}
           {questions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                 Không tìm thấy câu hỏi nào
               </TableCell>
             </TableRow>

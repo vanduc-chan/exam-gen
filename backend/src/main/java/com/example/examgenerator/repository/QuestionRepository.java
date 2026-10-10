@@ -17,13 +17,15 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
     
     boolean existsByCode(String code);
 
-    @Query("SELECT q FROM Question q WHERE " +
+    @Query("SELECT DISTINCT q FROM Question q LEFT JOIN q.courses c WHERE " +
            "(:subjectId IS NULL OR q.subject.id = :subjectId) AND " +
+           "(:courseId IS NULL OR c.id = :courseId) AND " +
            "(:type IS NULL OR q.type = :type) AND " +
            "(:level IS NULL OR q.difficultyLevel = :level) AND " +
            "(LOWER(q.content) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(q.code) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Question> findQuestionsWithFilters(
             @Param("subjectId") UUID subjectId,
+            @Param("courseId") UUID courseId,
             @Param("type") QuestionType type,
             @Param("level") DifficultyLevel level,
             @Param("search") String search,

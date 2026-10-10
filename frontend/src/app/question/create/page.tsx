@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { questionService } from '@/services/questionService';
 import { subjectService } from '@/services/subjectService';
-import { questionCategoryService } from '@/services/questionCategoryService';
+import { courseService } from '@/services/courseService';
 import QuestionForm from '@/components/question/QuestionForm';
 import { Subject } from '@/types/subject';
-import { QuestionCategory } from '@/types/questionCategory';
+import { Course } from '@/types/course';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
@@ -14,7 +14,7 @@ import { useRef } from 'react';
 const QuestionCreatePage = () => {
   const navigate = useNavigate();
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<QuestionCategory[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,10 +24,10 @@ const QuestionCreatePage = () => {
       try {
         const [subRes, catRes] = await Promise.all([
           subjectService.getAll(),
-          questionCategoryService.getAll(),
+          courseService.getAll(),
         ]);
         setSubjects(subRes.data.filter(s => s.isActive !== false));
-        setCategories(catRes.data);
+        setCourses(catRes.data);
       } catch (error) {
         toast.error('Lỗi khi tải dữ liệu phụ trợ');
       } finally {
@@ -62,7 +62,7 @@ const QuestionCreatePage = () => {
   const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
+
     toast.info(`Đang xử lý file ${file.name}...`);
     // Mock import action (Phase 6 or later)
     setTimeout(() => {
@@ -79,7 +79,7 @@ const QuestionCreatePage = () => {
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Thêm mới Câu hỏi</h2>
-        <div className="flex gap-2">
+        {/* <div className="flex gap-2">
           <Button variant="outline" onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Tải file mẫu
           </Button>
@@ -93,14 +93,14 @@ const QuestionCreatePage = () => {
             accept=".xlsx, .xls, .doc, .docx" 
             onChange={handleImportFile}
           />
-        </div>
+        </div> */}
       </div>
       <div className="bg-white p-6 rounded-md border">
-        <QuestionForm 
-          subjects={subjects} 
-          categories={categories} 
-          onSubmit={handleSubmit} 
-          isSubmitting={isSubmitting} 
+        <QuestionForm
+          subjects={subjects}
+          courses={courses}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
         />
       </div>
     </div>

@@ -5,7 +5,8 @@ import * as z from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { QuestionRequest, QuestionType, DifficultyLevel } from '@/types/question';
 import { Subject } from '@/types/subject';
-import { QuestionCategory } from '@/types/questionCategory';
+import { Course } from '@/types/course';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
   Form,
   FormControl,
@@ -35,14 +36,14 @@ const formSchema = z.object({
   answer: z.string().optional(),
   mediaUrl: z.string().optional(),
   subjectId: z.string().min(1, 'Vui lòng chọn môn học'),
-  categoryId: z.string().min(1, 'Vui lòng chọn phân loại'),
+  courseIds: z.array(z.string()).min(1, 'Vui lòng chọn ít nhất một đối tượng'),
   isActive: z.boolean().default(true),
 });
 
 interface QuestionFormProps {
   initialData?: any;
   subjects: Subject[];
-  categories: QuestionCategory[];
+  courses: Course[];
   onSubmit: (data: QuestionRequest) => void;
   isSubmitting?: boolean;
 }
@@ -50,7 +51,7 @@ interface QuestionFormProps {
 const QuestionForm: React.FC<QuestionFormProps> = ({
   initialData,
   subjects,
-  categories,
+  courses,
   onSubmit,
   isSubmitting = false,
 }) => {
@@ -66,7 +67,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
       answer: '',
       mediaUrl: '',
       subjectId: '',
-      categoryId: '',
+      courseIds: [],
       isActive: true,
     },
   });
@@ -82,7 +83,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
         answer: initialData.answer || '',
         mediaUrl: initialData.mediaUrl || '',
         subjectId: initialData.subjectId,
-        categoryId: initialData.categoryId,
+        courseIds: initialData.courses?.map((c: any) => c.id) || [],
         isActive: initialData.isActive,
       });
     }
@@ -119,24 +120,18 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
 
           <FormField
             control={form.control}
-            name="categoryId"
+            name="courseIds"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phân loại danh mục câu hỏi</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn phân loại..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Đối tượng (Course)</FormLabel>
+                <FormControl>
+                  <MultiSelect
+                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Chọn đối tượng..."
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

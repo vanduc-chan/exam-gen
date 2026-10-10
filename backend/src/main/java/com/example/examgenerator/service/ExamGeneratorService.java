@@ -65,9 +65,10 @@ public class ExamGeneratorService {
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Đối tượng thi không tồn tại"));
 
-        // Load all active questions for the subject
+        // Load all active questions for the subject and course
         List<Question> allQuestions = questionRepository.findAll().stream()
                 .filter(q -> q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive()))
+                .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> c.getId().equals(course.getId())))
                 .collect(Collectors.toList());
 
         List<Question> theories = filterByType(allQuestions, QuestionType.LY_THUYET);
@@ -80,7 +81,7 @@ public class ExamGeneratorService {
 
         // Create Master Exam record
         Exam exam = examMapper.toEntity(request, subject, course);
-        exam.setCode("EX-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        exam.setCode(subject.getSubjectCode()+ " " + course.getCourseCode() + "-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
         exam = examRepository.save(exam);
 
         Set<Set<UUID>> generatedSets = new HashSet<>();
