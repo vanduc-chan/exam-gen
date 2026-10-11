@@ -14,6 +14,7 @@ import QuestionCreatePage from '@/app/question/create/page';
 import QuestionEditPage from '@/app/question/edit/page';
 import ExamPage from '@/app/exam/page';
 import ExamGeneratePage from '@/app/exam/generate/page';
+import ExamEditPage from '@/app/exam/edit/page';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         <Route path="/questions/edit/:id" element={<MainLayout><QuestionEditPage /></MainLayout>} />
         <Route path="/exams" element={<MainLayout><ExamPage /></MainLayout>} />
         <Route path="/exams/generate" element={<MainLayout><ExamGeneratePage /></MainLayout>} />
+        <Route path="/exams/edit/:id" element={<MainLayout><ExamEditPage /></MainLayout>} />
         {/* We will add more routes here in subsequent phases */}
       </Routes>
     </BrowserRouter>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Exam } from '@/types/exam';
 import { Subject } from '@/types/subject';
 import { Course } from '@/types/course';
@@ -22,13 +22,30 @@ import {
 
 const ExamPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [exams, setExams] = useState<Exam[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<any>({});
-  const [page, setPage] = useState(0);
+
+  // 1-based page in URL (?page=1, ?page=2), 0-based for backend API
+  const pageParam = searchParams.get('page');
+  const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+  const page = currentPage - 1;
+
+  const setPage = useCallback((newPageOrFn: number | ((p: number) => number)) => {
+    const targetZeroBased = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
+    const targetOneBased = Math.max(1, targetZeroBased + 1);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('page', targetOneBased.toString());
+      return next;
+    });
+  }, [page, setSearchParams]);
+
   const [totalPages, setTotalPages] = useState(0);
   const size = 10;
 
@@ -92,6 +109,10 @@ const ExamPage = () => {
     toast.info('Tính năng xem chi tiết sẽ được cập nhật trong Phase 5');
   };
 
+  const handleEdit = (id: string) => {
+    navigate(`/exams/edit/${id}?from=${encodeURIComponent(location.pathname + location.search)}`);
+  };
+
   const handleExport = async (id: string, includeAnswers: boolean = false) => {
     const toastId = toast.loading(includeAnswers ? 'Đang tạo file Word (kèm đáp án)...' : 'Đang tạo file Word...');
     try {
@@ -111,10 +132,10 @@ const ExamPage = () => {
   };
 
   return (
-    <div className="p-8 space-y-4">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold tracking-tight">Quản lý Đợt Sinh Đề</h2>
-        <Button onClick={() => navigate('/exams/generate')}>
+    <div className="p-3 sm:p-5 md:p-8 space-y-4 max-w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Quản lý Đợt Sinh Đề</h2>
+        <Button onClick={() => navigate(`/exams/generate?from=${encodeURIComponent(location.pathname + location.search)}`)}>
           <Plus className="mr-2 h-4 w-4" /> Tạo đợt sinh đề
         </Button>
       </div>
@@ -135,11 +156,15 @@ const ExamPage = () => {
             onDelete={handleDelete}
             onView={handleView}
             onExport={handleExport}
+            onEdit={handleEdit}
           />
 
           {totalPages > 1 && (
-            <div className="mt-4 flex justify-end">
-              <Pagination>
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-sm text-muted-foreground order-2 sm:order-1">
+                Trang {currentPage} / {totalPages}
+              </div>
+              <Pagination className="order-1 sm:order-2 justify-end w-auto mx-0">
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious 
@@ -148,7 +173,7 @@ const ExamPage = () => {
                     />
                   </PaginationItem>
                   
-                  {[...Array(totalPages)].map((_, i) => (
+                  {Array.from({ length: totalPages }, (_, i) => (
                     <PaginationItem key={i}>
                       <PaginationLink 
                         isActive={page === i}

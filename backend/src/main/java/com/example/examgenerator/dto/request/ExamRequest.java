@@ -28,10 +28,16 @@ public class ExamRequest {
 
     private Integer durationMinutes = 90;
 
-    @NotNull(message = "Cấu trúc đề không được để trống")
     private ExamStructureType examStructure;
 
     @NotNull(message = "Số lượng đề cần sinh không được để trống")
     @Min(value = 1, message = "Số lượng đề phải lớn hơn 0")
     private Integer numberOfExams;
+
+    private Integer numberOfTheories = 0;
+    private Integer numberOfPractices = 0;
+    private Integer numberOfEssays = 0;
+    private Integer numberOfSituations = 0;
+
+    private Boolean regenerateQuestions = false;
 }

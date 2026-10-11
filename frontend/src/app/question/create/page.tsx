@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { questionService } from '@/services/questionService';
 import { subjectService } from '@/services/subjectService';
 import { courseService } from '@/services/courseService';
@@ -13,6 +13,8 @@ import { useRef } from 'react';
 
 const QuestionCreatePage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromUrl = searchParams.get('from');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ const QuestionCreatePage = () => {
       setIsSubmitting(true);
       await questionService.create(data);
       toast.success('Thêm câu hỏi thành công');
-      navigate('/questions');
+      navigate(fromUrl || '/questions');
     } catch (error: any) {
       toast.error(error.message || 'Lỗi khi lưu câu hỏi');
     } finally {
@@ -73,10 +75,10 @@ const QuestionCreatePage = () => {
     }, 1500);
   };
 
-  if (loading) return <div className="p-8">Đang tải...</div>;
+  if (loading) return <div className="p-4 sm:p-8">Đang tải...</div>;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-3 sm:p-5 md:p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Thêm mới Câu hỏi</h2>
         {/* <div className="flex gap-2">
@@ -101,6 +103,7 @@ const QuestionCreatePage = () => {
           courses={courses}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
+          onCancel={() => navigate(fromUrl || '/questions')}
         />
       </div>
     </div>

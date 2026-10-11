@@ -55,6 +55,18 @@ public class Exam extends BaseEntity {
     @Column(name = "structure_type", nullable = false)
     private ExamStructureType examStructure;
 
+    @Column(name = "number_of_theories")
+    private Integer numberOfTheories;
+
+    @Column(name = "number_of_practices")
+    private Integer numberOfPractices;
+
+    @Column(name = "number_of_essays")
+    private Integer numberOfEssays;
+
+    @Column(name = "number_of_situations")
+    private Integer numberOfSituations;
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

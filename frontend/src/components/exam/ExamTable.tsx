@@ -1,7 +1,7 @@
 import React from 'react';
 import { Exam } from '@/types/exam';
 import { Button } from '@/components/ui/button';
-import { Trash2, Download, Eye, FileText, FileCheck } from 'lucide-react';
+import { Trash2, Download, Eye, FileText, FileCheck, Pencil } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -24,6 +24,7 @@ interface ExamTableProps {
   onDelete: (id: string) => void;
   onView: (id: string) => void;
   onExport: (id: string, includeAnswers?: boolean) => void;
+  onEdit?: (id: string) => void;
 }
 
 const getStatusBadge = (status: string) => {
@@ -35,20 +36,20 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport }) => {
+const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport, onEdit }) => {
   return (
-    <div className="rounded-md border bg-white overflow-hidden">
-      <Table>
+    <div className="rounded-md border bg-white overflow-x-auto shadow-sm">
+      <Table className="min-w-[850px]">
         <TableHeader>
           <TableRow>
             <TableHead className="w-24">Mã Đợt</TableHead>
             <TableHead>Tên đợt sinh đề</TableHead>
             <TableHead>Môn học</TableHead>
             <TableHead>Đối tượng</TableHead>
-            <TableHead className="text-center">Số lượng đề</TableHead>
+            <TableHead className="text-center">Số đề</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead>Ngày tạo</TableHead>
-            <TableHead className="text-right">Hành động</TableHead>
+            <TableHead className="text-center">Hành động</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -60,13 +61,18 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
               <TableCell>{exam.courseName}</TableCell>
               <TableCell className="text-center">{exam.numberOfExams}</TableCell>
               <TableCell>{getStatusBadge(exam.status)}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">
+              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                 {exam.createdAt ? format(new Date(exam.createdAt), 'dd/MM/yyyy HH:mm') : ''}
               </TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onView(exam.id)} title="Xem chi tiết">
+              <TableCell className="text-center whitespace-nowrap">
+                {onEdit && (
+                  <Button variant="ghost" size="icon" onClick={() => onEdit(exam.id)} title="Chỉnh sửa đợt sinh đề">
+                    <Pencil className="h-4 w-4 text-amber-600" />
+                  </Button>
+                )}
+                {/* <Button variant="ghost" size="icon" onClick={() => onView(exam.id)} title="Xem chi tiết">
                   <Eye className="h-4 w-4" />
-                </Button>
+                </Button> */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" title="Xuất file Word">

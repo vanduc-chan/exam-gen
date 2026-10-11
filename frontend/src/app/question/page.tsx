@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Question } from '@/types/question';
 import { Subject } from '@/types/subject';
 import { questionService } from '@/services/questionService';
@@ -24,6 +24,7 @@ import {
 
 const QuestionListPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -35,17 +36,20 @@ const QuestionListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<any>({});
   
-  const initialPage = parseInt(searchParams.get('page') || '0', 10);
-  const [page, setPageState] = useState(initialPage);
+  // 1-based page in URL (?page=1, ?page=2), 0-based for backend API
+  const pageParam = searchParams.get('page');
+  const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+  const page = currentPage - 1;
   
-  const setPage = (newPageOrFn: number | ((p: number) => number)) => {
-    const newPage = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
-    setPageState(newPage);
+  const setPage = useCallback((newPageOrFn: number | ((p: number) => number)) => {
+    const targetZeroBased = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
+    const targetOneBased = Math.max(1, targetZeroBased + 1);
     setSearchParams(prev => {
-      prev.set('page', newPage.toString());
-      return prev;
-    }, { replace: true });
-  };
+      const next = new URLSearchParams(prev);
+      next.set('page', targetOneBased.toString());
+      return next;
+    });
+  }, [page, setSearchParams]);
   const [totalPages, setTotalPages] = useState(0);
   const size = 10;
 
@@ -142,10 +146,10 @@ const QuestionListPage = () => {
   };
 
   return (
-    <div className="p-8 space-y-4">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold tracking-tight">Ngân hàng Câu hỏi</h2>
-        <div className="flex gap-2">
+    <div className="p-3 sm:p-5 md:p-8 space-y-4 max-w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ngân hàng Câu hỏi</h2>
+        <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
             <Button variant="destructive" onClick={handleDeleteSelected}>
               <Trash2 className="mr-2 h-4 w-4" /> Xóa ({selectedIds.length})
@@ -154,7 +158,7 @@ const QuestionListPage = () => {
           <Button variant="outline" onClick={() => setIsImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" /> Nhập Excel
           </Button>
-          <Button onClick={() => navigate('/questions/create')}>
+          <Button onClick={() => navigate(`/questions/create?from=${encodeURIComponent(location.pathname + location.search)}`)}>
             <Plus className="mr-2 h-4 w-4" /> Thêm câu hỏi
           </Button>
         </div>
@@ -176,13 +180,16 @@ const QuestionListPage = () => {
             selectedIds={selectedIds}
             onSelectAll={handleSelectAll}
             onSelectOne={handleSelectOne}
-            onEdit={(id) => navigate(`/questions/edit/${id}`)}
+            onEdit={(id) => navigate(`/questions/edit/${id}?from=${encodeURIComponent(location.pathname + location.search)}`)}
             onDelete={handleDelete}
           />
 
           {totalPages > 1 && (
-            <div className="mt-4 flex justify-end">
-              <Pagination>
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-sm text-muted-foreground order-2 sm:order-1">
+                Trang {currentPage} / {totalPages}
+              </div>
+              <Pagination className="order-1 sm:order-2 justify-end w-auto mx-0">
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious 
@@ -191,7 +198,7 @@ const QuestionListPage = () => {
                     />
                   </PaginationItem>
                   
-                  {[...Array(totalPages)].map((_, i) => (
+                  {Array.from({ length: totalPages }, (_, i) => (
                     <PaginationItem key={i}>
                       <PaginationLink 
                         isActive={page === i}

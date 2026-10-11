@@ -1,7 +1,7 @@
 import React from 'react';
 import { DepartmentGroup } from '@/types/departmentGroup';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -20,8 +20,8 @@ interface DepartmentGroupTableProps {
 
 const DepartmentGroupTable: React.FC<DepartmentGroupTableProps> = ({ groups, onEdit, onDelete }) => {
   return (
-    <div className="rounded-md border bg-white">
-      <Table>
+    <div className="rounded-md border bg-white overflow-x-auto shadow-sm">
+      <Table className="min-w-[540px]">
         <TableHeader>
           <TableRow>
             <TableHead>Mã bộ môn</TableHead>
@@ -43,8 +43,8 @@ const DepartmentGroupTable: React.FC<DepartmentGroupTableProps> = ({ groups, onE
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(group)}>
-                  <Edit className="h-4 w-4" />
+                <Button variant="ghost" size="icon" onClick={() => onEdit(group)} title="Chỉnh sửa tổ bộ môn">
+                  <Pencil className="h-4 w-4 text-amber-600" />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => onDelete(group.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />

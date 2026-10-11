@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,6 +50,13 @@ public class ExamController {
     @PostMapping("/generate")
     public ResponseEntity<ApiResponse<ExamResponse>> generateExam(@Valid @RequestBody ExamRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Sinh đề thi thành công", examService.generateExam(request)));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<ExamResponse>> updateExam(
+            @PathVariable UUID id,
+            @Valid @RequestBody ExamRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật đề thi thành công", examService.updateExam(id, request)));
     }
 
     @DeleteMapping("/{id}")

@@ -26,6 +26,11 @@ export const examService = {
     return response.data;
   },
 
+  update: async (id: string, data: ExamRequest) => {
+    const response = await api.put<ApiResponse<Exam>>(`/exams/${id}`, data);
+    return response.data;
+  },
+
   delete: async (id: string) => {
     const response = await api.delete<ApiResponse<void>>(`/exams/${id}`);
     return response.data;

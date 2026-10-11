@@ -31,8 +31,8 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="p-8 space-y-6">
-      <h2 className="text-3xl font-bold tracking-tight">Tổng quan hệ thống</h2>
+    <div className="p-3 sm:p-5 md:p-8 space-y-6 max-w-full">
+      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Tổng quan hệ thống</h2>
       
       {loading ? (
         <div className="text-center py-10">Đang tải dữ liệu...</div>

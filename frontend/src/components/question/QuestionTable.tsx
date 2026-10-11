@@ -1,7 +1,7 @@
 import React from 'react';
 import { Question, QuestionType } from '@/types/question';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -38,8 +38,8 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
   const allSelected = questions.length > 0 && selectedIds.length === questions.length;
 
   return (
-    <div className="rounded-md border bg-white overflow-hidden">
-      <Table>
+    <div className="rounded-md border bg-white overflow-x-auto shadow-sm">
+      <Table className="min-w-[700px]">
         <TableHeader>
           <TableRow>
             <TableHead className="w-12 text-center">
@@ -87,8 +87,8 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
               </TableCell>
               <TableCell>{getTypeLabel(q.type)}</TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(q.id)}>
-                  <Edit className="h-4 w-4" />
+                <Button variant="ghost" size="icon" onClick={() => onEdit(q.id)} title="Chỉnh sửa câu hỏi">
+                  <Pencil className="h-4 w-4 text-amber-600" />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => onDelete(q.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />

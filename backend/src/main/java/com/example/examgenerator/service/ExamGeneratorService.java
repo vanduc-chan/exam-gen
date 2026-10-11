@@ -67,6 +67,17 @@ public class ExamGeneratorService {
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Đối tượng thi không tồn tại"));
 
+        int[] counts = resolveQuestionCounts(request);
+        int numT = counts[0], numP = counts[1], numE = counts[2], numS = counts[3];
+
+        request.setNumberOfTheories(numT);
+        request.setNumberOfPractices(numP);
+        request.setNumberOfEssays(numE);
+        request.setNumberOfSituations(numS);
+        if (request.getExamStructure() == null) {
+            request.setExamStructure(ExamStructureType.CUSTOM);
+        }
+
         // Load all active questions for the subject and course
         List<Question> allQuestions = questionRepository.findAll().stream()
                 .filter(q -> q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive()))
@@ -79,7 +90,7 @@ public class ExamGeneratorService {
         List<Question> situations = filterByType(allQuestions, QuestionType.TINH_HUONG);
 
         // Validate enough questions
-        validateQuestionCount(request.getExamStructure(), request.getNumberOfExams(), theories.size(), practices.size(), essays.size(), situations.size());
+        validateQuestionCounts(theories.size(), practices.size(), essays.size(), situations.size(), numT, numP, numE, numS);
 
         // Create Master Exam record
         Exam exam = examMapper.toEntity(request, subject, course);
@@ -105,10 +116,11 @@ public class ExamGeneratorService {
 
         // Generate N details
         for (int i = 0; i < request.getNumberOfExams(); i++) {
-            List<Question> selectedQuestions = generateUniqueSet(request.getExamStructure(), theories, practices, essays, situations, generatedSets);
+            List<Question> selectedQuestions = generateUniqueSet(numT, numP, numE, numS, theories, practices, essays, situations, generatedSets);
             
             ExamDetail detail = ExamDetail.builder()
                     .examSetCode(exam.getCode() + "-" + String.format("%02d", i + 1))
+                    .orderNumber(i + 1)
                     .exam(exam)
                     .build();
             detail = examDetailRepository.save(detail);
@@ -129,30 +141,140 @@ public class ExamGeneratorService {
     }
 
     @Transactional
+    public ExamResponse updateExam(UUID id, ExamRequest request) {
+        Exam exam = examRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Đợt sinh đề không tồn tại với ID: " + id));
+
+        Subject subject = subjectRepository.findById(request.getSubjectId())
+                .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại"));
+        Course course = courseRepository.findById(request.getCourseId())
+                .orElseThrow(() -> new ResourceNotFoundException("Đối tượng thi không tồn tại"));
+
+        int[] counts = resolveQuestionCounts(request);
+        int numT = counts[0], numP = counts[1], numE = counts[2], numS = counts[3];
+
+        ExamStructureType structure = request.getExamStructure() != null ? request.getExamStructure() : ExamStructureType.CUSTOM;
+
+        exam.setTitle(request.getTitle());
+        exam.setSemester(request.getSemester());
+        exam.setAcademicYear(request.getAcademicYear());
+        exam.setDurationMinutes(request.getDurationMinutes());
+        exam.setExamStructure(structure);
+        exam.setNumberOfTheories(numT);
+        exam.setNumberOfPractices(numP);
+        exam.setNumberOfEssays(numE);
+        exam.setNumberOfSituations(numS);
+        exam.setSubject(subject);
+        exam.setCourse(course);
+
+        boolean shouldRegenerate = Boolean.TRUE.equals(request.getRegenerateQuestions()) 
+                || exam.getExamDetails().isEmpty() 
+                || exam.getNumberOfExams() != request.getNumberOfExams();
+
+        exam.setNumberOfExams(request.getNumberOfExams());
+
+        if (shouldRegenerate) {
+            // Load all active questions
+            List<Question> allQuestions = questionRepository.findAll().stream()
+                    .filter(q -> q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive()))
+                    .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> c.getId().equals(course.getId())))
+                    .collect(Collectors.toList());
+
+            List<Question> theories = filterByType(allQuestions, QuestionType.LY_THUYET);
+            List<Question> practices = filterByType(allQuestions, QuestionType.THUC_HANH);
+            List<Question> essays = filterByType(allQuestions, QuestionType.TU_LUAN);
+            List<Question> situations = filterByType(allQuestions, QuestionType.TINH_HUONG);
+
+            validateQuestionCounts(theories.size(), practices.size(), essays.size(), situations.size(), numT, numP, numE, numS);
+
+            // Cleanly delete child questions and old details
+            List<ExamDetail> oldDetails = examDetailRepository.findByExamId(exam.getId());
+            for (ExamDetail d : oldDetails) {
+                examQuestionRepository.deleteByExamDetailId(d.getId());
+            }
+            examQuestionRepository.flush();
+            examDetailRepository.deleteAll(oldDetails);
+            examDetailRepository.flush();
+            exam.getExamDetails().clear();
+            exam = examRepository.saveAndFlush(exam);
+
+            Set<Set<UUID>> generatedSets = new HashSet<>();
+            for (int i = 0; i < request.getNumberOfExams(); i++) {
+                List<Question> selectedQuestions = generateUniqueSet(numT, numP, numE, numS, theories, practices, essays, situations, generatedSets);
+
+                ExamDetail detail = ExamDetail.builder()
+                        .examSetCode(exam.getCode() + "-" + String.format("%02d", i + 1))
+                        .orderNumber(i + 1)
+                        .exam(exam)
+                        .build();
+                detail = examDetailRepository.save(detail);
+
+                int order = 1;
+                for (Question q : selectedQuestions) {
+                    ExamQuestion eq = ExamQuestion.builder()
+                            .examDetail(detail)
+                            .question(q)
+                            .questionOrder(order++)
+                            .score(q.getScore())
+                            .build();
+                    examQuestionRepository.save(eq);
+                }
+            }
+        }
+
+        Exam updated = examRepository.save(exam);
+        return examMapper.toResponse(updated);
+    }
+
+    @Transactional
     public void deleteExam(UUID id) {
         examRepository.deleteById(id);
+    }
+
+    private int[] resolveQuestionCounts(ExamRequest request) {
+        int numT = request.getNumberOfTheories() != null ? request.getNumberOfTheories() : 0;
+        int numP = request.getNumberOfPractices() != null ? request.getNumberOfPractices() : 0;
+        int numE = request.getNumberOfEssays() != null ? request.getNumberOfEssays() : 0;
+        int numS = request.getNumberOfSituations() != null ? request.getNumberOfSituations() : 0;
+
+        if (numT == 0 && numP == 0 && numE == 0 && numS == 0 && request.getExamStructure() != null) {
+            switch (request.getExamStructure()) {
+                case THEORY_PRACTICE -> { numT = 1; numP = 1; }
+                case ESSAY -> { numE = 1; }
+                case THEORY_PRACTICE_SITUATION -> { numT = 1; numP = 1; numS = 1; }
+                default -> {}
+            }
+        }
+
+        if (numT + numP + numE + numS <= 0) {
+            throw new IllegalArgumentException("Cấu trúc đề phải có ít nhất 1 câu hỏi.");
+        }
+
+        return new int[]{numT, numP, numE, numS};
     }
 
     private List<Question> filterByType(List<Question> list, QuestionType type) {
         return list.stream().filter(q -> q.getType() == type).collect(Collectors.toList());
     }
 
-    private void validateQuestionCount(ExamStructureType structure, int numExams, int t, int p, int e, int s) {
-        // We ideally want at least one unique combination for each exam to avoid duplicates.
-        // For simplicity, we just check if we have at least 1 question of required types.
-        if (structure == ExamStructureType.THEORY_PRACTICE && (t < 1 || p < 1)) {
-            throw new IllegalArgumentException("Không đủ câu hỏi Lý thuyết hoặc Thực hành để sinh đề.");
+    private void validateQuestionCounts(int tAvailable, int pAvailable, int eAvailable, int sAvailable,
+                                         int numT, int numP, int numE, int numS) {
+        if (numT > 0 && tAvailable < numT) {
+            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Lý thuyết trong ngân hàng (yêu cầu %d, hiện có %d).", numT, tAvailable));
         }
-        if (structure == ExamStructureType.ESSAY && e < 1) {
-            throw new IllegalArgumentException("Không đủ câu hỏi Tự luận để sinh đề.");
+        if (numP > 0 && pAvailable < numP) {
+            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Thực hành trong ngân hàng (yêu cầu %d, hiện có %d).", numP, pAvailable));
         }
-        if (structure == ExamStructureType.THEORY_PRACTICE_SITUATION && (t < 1 || p < 1 || s < 1)) {
-            throw new IllegalArgumentException("Không đủ câu hỏi Lý thuyết, Thực hành hoặc Tình huống để sinh đề.");
+        if (numE > 0 && eAvailable < numE) {
+            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Tự luận trong ngân hàng (yêu cầu %d, hiện có %d).", numE, eAvailable));
+        }
+        if (numS > 0 && sAvailable < numS) {
+            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Tình huống trong ngân hàng (yêu cầu %d, hiện có %d).", numS, sAvailable));
         }
     }
 
     private List<Question> generateUniqueSet(
-            ExamStructureType structure, 
+            int numT, int numP, int numE, int numS,
             List<Question> tList, 
             List<Question> pList, 
             List<Question> eList, 
@@ -163,17 +285,10 @@ public class ExamGeneratorService {
         
         for (int i = 0; i < maxAttempts; i++) {
             List<Question> candidate = new ArrayList<>();
-            
-            if (structure == ExamStructureType.THEORY_PRACTICE) {
-                candidate.add(getRandom(tList));
-                candidate.add(getRandom(pList));
-            } else if (structure == ExamStructureType.ESSAY) {
-                candidate.add(getRandom(eList));
-            } else if (structure == ExamStructureType.THEORY_PRACTICE_SITUATION) {
-                candidate.add(getRandom(tList));
-                candidate.add(getRandom(pList));
-                candidate.add(getRandom(sList));
-            }
+            candidate.addAll(getRandomSample(tList, numT));
+            candidate.addAll(getRandomSample(pList, numP));
+            candidate.addAll(getRandomSample(eList, numE));
+            candidate.addAll(getRandomSample(sList, numS));
             
             Set<UUID> idSet = candidate.stream().map(Question::getId).collect(Collectors.toSet());
             if (!generatedSets.contains(idSet)) {
@@ -184,23 +299,19 @@ public class ExamGeneratorService {
         
         // Fallback if we run out of unique combinations
         List<Question> fallback = new ArrayList<>();
-        if (structure == ExamStructureType.THEORY_PRACTICE) {
-            fallback.add(getRandom(tList));
-            fallback.add(getRandom(pList));
-        } else if (structure == ExamStructureType.ESSAY) {
-            fallback.add(getRandom(eList));
-        } else if (structure == ExamStructureType.THEORY_PRACTICE_SITUATION) {
-            fallback.add(getRandom(tList));
-            fallback.add(getRandom(pList));
-            fallback.add(getRandom(sList));
-        }
+        fallback.addAll(getRandomSample(tList, numT));
+        fallback.addAll(getRandomSample(pList, numP));
+        fallback.addAll(getRandomSample(eList, numE));
+        fallback.addAll(getRandomSample(sList, numS));
         return fallback;
     }
 
-    private Question getRandom(List<Question> list) {
-        if (list.isEmpty()) return null;
+    private List<Question> getRandomSample(List<Question> list, int count) {
+        if (count <= 0 || list == null || list.isEmpty()) {
+            return Collections.emptyList();
+        }
         List<Question> copy = new ArrayList<>(list);
         Collections.shuffle(copy);
-        return copy.get(0);
+        return copy.subList(0, Math.min(count, copy.size()));
     }
 }

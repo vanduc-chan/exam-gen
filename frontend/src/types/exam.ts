@@ -1,7 +1,8 @@
 export enum ExamStructureType {
   THEORY_PRACTICE = 'THEORY_PRACTICE',
   ESSAY = 'ESSAY',
-  THEORY_PRACTICE_SITUATION = 'THEORY_PRACTICE_SITUATION'
+  THEORY_PRACTICE_SITUATION = 'THEORY_PRACTICE_SITUATION',
+  CUSTOM = 'CUSTOM'
 }
 
 export enum ExamStatus {
@@ -21,7 +22,11 @@ export interface Exam {
   semester: string;
   academicYear: string;
   durationMinutes: number;
-  examStructure: ExamStructureType;
+  examStructure?: ExamStructureType;
+  numberOfTheories?: number;
+  numberOfPractices?: number;
+  numberOfEssays?: number;
+  numberOfSituations?: number;
   numberOfExams: number;
   status: ExamStatus;
   createdAt: string;
@@ -35,6 +40,11 @@ export interface ExamRequest {
   semester: string;
   academicYear: string;
   durationMinutes: number;
-  examStructure: ExamStructureType;
+  examStructure?: ExamStructureType;
   numberOfExams: number;
+  numberOfTheories?: number;
+  numberOfPractices?: number;
+  numberOfEssays?: number;
+  numberOfSituations?: number;
+  regenerateQuestions?: boolean;
 }

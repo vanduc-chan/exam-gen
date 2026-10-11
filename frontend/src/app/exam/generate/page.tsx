@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { examService } from '@/services/examService';
 import { subjectService } from '@/services/subjectService';
 import { courseService } from '@/services/courseService';
@@ -28,8 +28,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, BookOpen, Layers, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Vui lòng nhập tên đợt sinh đề'),
@@ -40,10 +41,21 @@ const formSchema = z.object({
   durationMinutes: z.coerce.number().min(1, 'Thời gian thi phải lớn hơn 0'),
   examStructure: z.nativeEnum(ExamStructureType),
   numberOfExams: z.coerce.number().min(1, 'Số lượng đề tối thiểu là 1').max(20, 'Sinh tối đa 20 đề mỗi đợt'),
+  numberOfTheories: z.coerce.number().min(0, 'Số câu không được âm'),
+  numberOfPractices: z.coerce.number().min(0, 'Số câu không được âm'),
+  numberOfEssays: z.coerce.number().min(0, 'Số câu không được âm'),
+  numberOfSituations: z.coerce.number().min(0, 'Số câu không được âm'),
+}).refine(data => {
+  return (data.numberOfTheories + data.numberOfPractices + data.numberOfEssays + data.numberOfSituations) > 0;
+}, {
+  message: 'Cấu trúc đề thi phải có ít nhất 1 câu hỏi (tổng số câu phải lớn hơn 0)',
+  path: ['numberOfTheories'],
 });
 
 const ExamGeneratePage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromUrl = searchParams.get('from');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,8 +73,19 @@ const ExamGeneratePage = () => {
       durationMinutes: 90,
       examStructure: ExamStructureType.THEORY_PRACTICE,
       numberOfExams: 1,
+      numberOfTheories: 1,
+      numberOfPractices: 1,
+      numberOfEssays: 0,
+      numberOfSituations: 0,
     },
   });
+
+  const { watch, setValue } = form;
+  const numTheories = watch('numberOfTheories') || 0;
+  const numPractices = watch('numberOfPractices') || 0;
+  const numEssays = watch('numberOfEssays') || 0;
+  const numSituations = watch('numberOfSituations') || 0;
+  const totalQuestions = numTheories + numPractices + numEssays + numSituations;
 
   useEffect(() => {
     const loadData = async () => {
@@ -82,13 +105,38 @@ const ExamGeneratePage = () => {
     loadData();
   }, []);
 
+  const handleStructurePresetChange = (preset: ExamStructureType) => {
+    setValue('examStructure', preset);
+    if (preset === ExamStructureType.THEORY_PRACTICE) {
+      setValue('numberOfTheories', 1);
+      setValue('numberOfPractices', 1);
+      setValue('numberOfEssays', 0);
+      setValue('numberOfSituations', 0);
+    } else if (preset === ExamStructureType.ESSAY) {
+      setValue('numberOfTheories', 0);
+      setValue('numberOfPractices', 0);
+      setValue('numberOfEssays', 1);
+      setValue('numberOfSituations', 0);
+    } else if (preset === ExamStructureType.THEORY_PRACTICE_SITUATION) {
+      setValue('numberOfTheories', 1);
+      setValue('numberOfPractices', 1);
+      setValue('numberOfEssays', 0);
+      setValue('numberOfSituations', 1);
+    }
+  };
+
+  const handleCountChange = (field: 'numberOfTheories' | 'numberOfPractices' | 'numberOfEssays' | 'numberOfSituations', val: number) => {
+    setValue(field, Math.max(0, val));
+    setValue('examStructure', ExamStructureType.CUSTOM);
+  };
+
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
       setErrorMsg('');
       await examService.generate(data);
       toast.success('Sinh đề thi thành công');
-      navigate('/exams');
+      navigate(fromUrl || '/exams');
     } catch (error: any) {
       setErrorMsg(error.response?.data?.message || error.message || 'Lỗi khi sinh đề. Có thể không đủ số lượng câu hỏi trong ngân hàng.');
     } finally {
@@ -96,11 +144,14 @@ const ExamGeneratePage = () => {
     }
   };
 
-  if (loading) return <div className="p-8">Đang tải...</div>;
+  if (loading) return <div className="p-4 sm:p-8">Đang tải...</div>;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight">Tạo Đợt Sinh Đề Mới</h2>
+    <div className="p-3 sm:p-5 md:p-8 max-w-4xl mx-auto space-y-6">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Tạo Đợt Sinh Đề Mới</h2>
+        <p className="text-sm text-muted-foreground mt-1">Cấu hình thông tin kỳ thi và số lượng từng loại câu hỏi để hệ thống tự động sinh đề.</p>
+      </div>
       
       {errorMsg && (
         <Alert variant="destructive">
@@ -110,7 +161,7 @@ const ExamGeneratePage = () => {
         </Alert>
       )}
 
-      <div className="bg-white p-6 rounded-md border">
+      <div className="bg-white p-4 sm:p-6 rounded-md border shadow-sm">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -118,22 +169,22 @@ const ExamGeneratePage = () => {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tên đợt sinh đề</FormLabel>
+                  <FormLabel>Tên đợt sinh đề <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="VD: Thi cuối kỳ môn CSDL học kỳ 1 2023-2024" {...field} />
+                    <Input placeholder="VD: Thi cuối kỳ 1" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <FormField
                 control={form.control}
                 name="subjectId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Môn học</FormLabel>
+                    <FormLabel>Môn học <span className="text-destructive">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -143,7 +194,7 @@ const ExamGeneratePage = () => {
                       <SelectContent>
                         {subjects.map(sub => (
                           <SelectItem key={sub.id} value={sub.id}>
-                            {sub.subjectName}
+                            {sub.subjectName} ({sub.subjectCode})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -158,7 +209,7 @@ const ExamGeneratePage = () => {
                 name="courseId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Đối tượng thi</FormLabel>
+                    <FormLabel>Đối tượng thi <span className="text-destructive">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -168,7 +219,7 @@ const ExamGeneratePage = () => {
                       <SelectContent>
                         {courses.map(c => (
                           <SelectItem key={c.id} value={c.id}>
-                            {c.name}
+                            {c.name} ({c.courseCode})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -183,7 +234,7 @@ const ExamGeneratePage = () => {
                 name="semester"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Học kỳ</FormLabel>
+                    <FormLabel>Học kỳ <span className="text-destructive">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -206,33 +257,10 @@ const ExamGeneratePage = () => {
                 name="academicYear"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Năm học</FormLabel>
+                    <FormLabel>Năm học <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="VD: 2023-2024" {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="examStructure"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cấu trúc đề thi</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn cấu trúc đề thi..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={ExamStructureType.THEORY_PRACTICE}>1 Lý thuyết + 1 Thực hành</SelectItem>
-                        <SelectItem value={ExamStructureType.ESSAY}>1 Tự luận</SelectItem>
-                        <SelectItem value={ExamStructureType.THEORY_PRACTICE_SITUATION}>1 LT + 1 TH + 1 Tình huống</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -245,7 +273,7 @@ const ExamGeneratePage = () => {
                   <FormItem>
                     <FormLabel>Thời gian làm bài (Phút)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" min="1" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -257,24 +285,161 @@ const ExamGeneratePage = () => {
                 name="numberOfExams"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Số lượng đề cần sinh</FormLabel>
+                    <FormLabel>Số lượng đề cần sinh (1 - 20)</FormLabel>
                     <FormControl>
                       <Input type="number" min="1" max="20" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Hệ thống sẽ chọn ngẫu nhiên không trùng lặp các câu hỏi dựa theo cấu trúc đã chọn.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            <div className="flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={() => navigate('/exams')}>
+            {/* Custom Exam Structure Section */}
+            <div className="rounded-lg border bg-slate-50/80 p-4 sm:p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-primary" />
+                  <span className="font-semibold text-base">Cấu trúc đề thi</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={totalQuestions > 0 ? "default" : "destructive"} className="text-xs">
+                    Tổng cộng: {totalQuestions} câu hỏi / đề
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="examStructure"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Mẫu cấu trúc định sẵn</FormLabel>
+                      <Select 
+                        onValueChange={(val) => handleStructurePresetChange(val as ExamStructureType)} 
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn mẫu cấu trúc..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={ExamStructureType.CUSTOM}>Tùy chỉnh (Tự chọn số lượng từng loại câu hỏi)</SelectItem>
+                          <SelectItem value={ExamStructureType.THEORY_PRACTICE}>1 Lý thuyết + 1 Thực hành</SelectItem>
+                          <SelectItem value={ExamStructureType.ESSAY}>1 Tự luận</SelectItem>
+                          <SelectItem value={ExamStructureType.THEORY_PRACTICE_SITUATION}>1 LT + 1 TH + 1 Tình huống</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Bạn có thể chọn nhanh mẫu định sẵn hoặc tự điều chỉnh số lượng cụ thể từng phần bên dưới.
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numberOfTheories"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+                        Số câu Lý thuyết
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field} 
+                          onChange={(e) => handleCountChange('numberOfTheories', parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numberOfPractices"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />
+                        Số câu Thực hành
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field} 
+                          onChange={(e) => handleCountChange('numberOfPractices', parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numberOfEssays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />
+                        Số câu Tự luận
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field} 
+                          onChange={(e) => handleCountChange('numberOfEssays', parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numberOfSituations"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-purple-500 inline-block" />
+                        Số câu Tình huống
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field} 
+                          onChange={(e) => handleCountChange('numberOfSituations', parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {totalQuestions === 0 && (
+                <p className="text-xs text-destructive font-medium">
+                  Vui lòng nhập số câu cho ít nhất 1 loại câu hỏi.
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => navigate(fromUrl || '/exams')}>
                 Hủy
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || totalQuestions === 0}>
                 {isSubmitting ? 'Đang xử lý...' : 'Sinh đề thi'}
               </Button>
             </div>

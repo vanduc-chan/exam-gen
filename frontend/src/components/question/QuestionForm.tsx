@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { QuestionRequest, QuestionType, DifficultyLevel } from '@/types/question';
 import { Subject } from '@/types/subject';
 import { Course } from '@/types/course';
@@ -46,6 +46,7 @@ interface QuestionFormProps {
   courses: Course[];
   onSubmit: (data: QuestionRequest) => void;
   isSubmitting?: boolean;
+  onCancel?: () => void;
 }
 
 const QuestionForm: React.FC<QuestionFormProps> = ({
@@ -54,8 +55,11 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
   courses,
   onSubmit,
   isSubmitting = false,
+  onCancel,
 }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromUrl = searchParams.get('from');
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -264,7 +268,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
         />
 
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/questions')}>
+          <Button type="button" variant="outline" onClick={() => onCancel ? onCancel() : navigate(fromUrl || '/questions')}>
             Hủy
           </Button>
           <Button type="submit" disabled={isSubmitting}>

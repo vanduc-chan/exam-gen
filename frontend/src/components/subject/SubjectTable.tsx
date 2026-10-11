@@ -1,7 +1,7 @@
 import React from 'react';
 import { Subject } from '@/types/subject';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -19,8 +19,8 @@ interface SubjectTableProps {
 
 const SubjectTable: React.FC<SubjectTableProps> = ({ subjects, onEdit, onDelete }) => {
   return (
-    <div className="rounded-md border bg-white">
-      <Table>
+    <div className="rounded-md border bg-white overflow-x-auto shadow-sm">
+      <Table className="min-w-[540px]">
         <TableHeader>
           <TableRow>
             <TableHead>Mã môn học</TableHead>
@@ -38,8 +38,8 @@ const SubjectTable: React.FC<SubjectTableProps> = ({ subjects, onEdit, onDelete 
               <TableCell>{subject.departmentGroupName}</TableCell>
               <TableCell>{subject.description}</TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(subject)}>
-                  <Edit className="h-4 w-4" />
+                <Button variant="ghost" size="icon" onClick={() => onEdit(subject)} title="Chỉnh sửa môn học">
+                  <Pencil className="h-4 w-4 text-amber-600" />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => onDelete(subject.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />

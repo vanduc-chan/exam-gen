@@ -22,6 +22,10 @@ public class ExamResponse {
     private String academicYear;
     private Integer durationMinutes;
     private ExamStructureType examStructure;
+    private Integer numberOfTheories;
+    private Integer numberOfPractices;
+    private Integer numberOfEssays;
+    private Integer numberOfSituations;
     private Integer numberOfExams;
     private ExamStatus status;
     private LocalDateTime createdAt;

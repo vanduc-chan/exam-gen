@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { questionService } from '@/services/questionService';
 import { subjectService } from '@/services/subjectService';
 import { courseService } from '@/services/courseService';
@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 const QuestionEditPage = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const fromUrl = searchParams.get('from');
   
   const [initialData, setInitialData] = useState<any>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -33,13 +35,13 @@ const QuestionEditPage = () => {
         setCourses(catRes.data);
       } catch (error) {
         toast.error('Lỗi khi tải dữ liệu câu hỏi');
-        navigate('/questions');
+        navigate(fromUrl || '/questions');
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [id, navigate]);
+  }, [id, navigate, fromUrl]);
 
   const handleSubmit = async (data: any) => {
     try {
@@ -47,7 +49,7 @@ const QuestionEditPage = () => {
       if (id) {
         await questionService.update(id, data);
         toast.success('Cập nhật câu hỏi thành công');
-        navigate('/questions');
+        navigate(fromUrl || '/questions');
       }
     } catch (error: any) {
       toast.error(error.message || 'Lỗi khi lưu câu hỏi');
@@ -56,10 +58,10 @@ const QuestionEditPage = () => {
     }
   };
 
-  if (loading) return <div className="p-8">Đang tải...</div>;
+  if (loading) return <div className="p-4 sm:p-8">Đang tải...</div>;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-3 sm:p-5 md:p-8 max-w-4xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold tracking-tight">Cập nhật Câu hỏi</h2>
       <div className="bg-white p-6 rounded-md border">
         <QuestionForm 
@@ -68,6 +70,7 @@ const QuestionEditPage = () => {
           courses={courses} 
           onSubmit={handleSubmit} 
           isSubmitting={isSubmitting} 
+          onCancel={() => navigate(fromUrl || '/questions')}
         />
       </div>
     </div>
