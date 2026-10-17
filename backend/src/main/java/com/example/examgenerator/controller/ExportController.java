@@ -27,12 +27,8 @@ public class ExportController {
         byte[] docBytes = exportService.exportExamToWord(id, includeAnswers);
         
         Exam exam = examRepository.findById(id).orElse(null);
-        String filename = (exam != null && exam.getCode() != null) ? exam.getCode() : "exams";
-        if (includeAnswers) {
-            filename += "_answers.docx";
-        } else {
-            filename += ".docx";
-        }
+        String base = (exam != null && exam.getCode() != null) ? exam.getCode() : "exam";
+        String filename = base + (includeAnswers ? "_answer.docx" : "_question.docx");
         
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));

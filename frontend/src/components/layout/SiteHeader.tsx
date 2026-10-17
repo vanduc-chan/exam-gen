@@ -16,10 +16,10 @@ const SiteHeader = () => {
         </Button>
 
         {/* Toggle Button for Desktop */}
-        <Button variant="ghost" size="icon" onClick={toggleCollapse} className="hidden md:flex">
+        {/* <Button variant="ghost" size="icon" onClick={toggleCollapse} className="hidden md:flex">
           <PanelLeft className="h-5 w-5 text-muted-foreground" />
           <span className="sr-only">Toggle sidebar</span>
-        </Button>
+        </Button> */}
       </div>
 
       {/* <div className="flex items-center gap-4">

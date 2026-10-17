@@ -47,8 +47,9 @@ const AppSidebar = () => {
       >
         <div className="h-14 flex items-center justify-between px-4 border-b">
           <div className="flex items-center gap-2 font-bold text-lg text-primary">
-            <LogoIcon className="h-6 w-6" />
-            <span>Exam Generator</span>
+            <img src="/QSQK3.jpg" alt="Logo" className="h-10 w-10" />
+            {/* <LogoIcon className="h-6 w-6" /> */}
+            <span>Hệ thống tạo đề</span>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(false)}>
             <X className="h-5 w-5" />
@@ -86,8 +87,8 @@ const AppSidebar = () => {
         <div className="h-14 flex items-center justify-between px-4 border-b">
           {!isCollapsed && (
             <div className="flex items-center gap-2 font-bold text-lg text-primary truncate">
-              <LogoIcon className="h-6 w-6 shrink-0" />
-              <span className="truncate">Exam Generator</span>
+              <img src="/QSQK3.jpg" alt="Logo" className="h-10 w-10" />
+              <span className="truncate">Hệ thống tạo đề</span>
             </div>
           )}
           {isCollapsed && (

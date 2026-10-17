@@ -155,6 +155,14 @@ public class ExamGeneratorService {
 
         ExamStructureType structure = request.getExamStructure() != null ? request.getExamStructure() : ExamStructureType.CUSTOM;
 
+        boolean structureChanged = !java.util.Objects.equals(exam.getNumberOfTheories(), numT)
+                || !java.util.Objects.equals(exam.getNumberOfPractices(), numP)
+                || !java.util.Objects.equals(exam.getNumberOfEssays(), numE)
+                || !java.util.Objects.equals(exam.getNumberOfSituations(), numS)
+                || !exam.getSubject().getId().equals(subject.getId())
+                || !exam.getCourse().getId().equals(course.getId());
+        boolean examCountChanged = !java.util.Objects.equals(exam.getNumberOfExams(), request.getNumberOfExams());
+
         exam.setTitle(request.getTitle());
         exam.setSemester(request.getSemester());
         exam.setAcademicYear(request.getAcademicYear());
@@ -169,7 +177,8 @@ public class ExamGeneratorService {
 
         boolean shouldRegenerate = Boolean.TRUE.equals(request.getRegenerateQuestions()) 
                 || exam.getExamDetails().isEmpty() 
-                || exam.getNumberOfExams() != request.getNumberOfExams();
+                || structureChanged
+                || examCountChanged;
 
         exam.setNumberOfExams(request.getNumberOfExams());
 

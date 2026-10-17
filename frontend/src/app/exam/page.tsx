@@ -120,7 +120,8 @@ const ExamPage = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', includeAnswers ? `exams-answers-${id.substring(0,8)}.docx` : `exams-${id.substring(0,8)}.docx`);
+      const code = exams.find(e => e.id === id)?.code || id.substring(0, 8);
+      link.setAttribute('download', `${code}_${includeAnswers ? 'answer' : 'question'}.docx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
