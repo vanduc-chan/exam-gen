@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: exam_generator
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d exam_generator"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    image: ${IMAGE_PREFIX}-backend:latest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/exam_generator
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+
+  frontend:
+    image: ${IMAGE_PREFIX}-frontend:latest
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:

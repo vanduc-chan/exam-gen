@@ -5,9 +5,9 @@ spring:
   application:
     name: exam-generator
   datasource:
-    url: jdbc:postgresql://localhost:5432/exam_generator
-    username: postgres
-    password: 123456
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/exam_generator}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
