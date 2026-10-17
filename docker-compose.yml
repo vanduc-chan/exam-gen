@@ -31,6 +31,12 @@ services:
       - backend
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      # Chứng chỉ do certbot tạo trên host, mount chỉ-đọc vào container
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Thư mục xác thực khi gia hạn (webroot)
+      - /var/www/certbot:/var/www/certbot:ro
 
 volumes:
   pgdata:
