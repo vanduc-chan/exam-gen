@@ -37,6 +37,40 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
       # Thư mục xác thực khi gia hạn (webroot)
       - /var/www/certbot:/var/www/certbot:ro
+ 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus
+    restart: always
+    volumes:
+      - /home/ubuntu/exam-generator/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d' # Giữ dữ liệu trong 15 ngày để tiết kiệm ổ đĩa
+    ports:
+      - "9090:9090"
+    networks:
+      - default
 
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Đổi lại mật khẩu này sau khi đăng nhập
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    networks:
+      - default
 volumes:
   pgdata:
+  prometheus_data:
+  grafana_data:
