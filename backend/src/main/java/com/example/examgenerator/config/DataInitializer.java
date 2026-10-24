@@ -29,6 +29,7 @@ public class DataInitializer implements CommandLineRunner {
     private final ExamGeneratorService examGeneratorService;
 
     @Override
+    @Transactional
     public void run(String... args) {
         if (departmentRepository.count() == 0 || questionRepository.count() < 10) {
             log.info("Database is empty or has minimal data. Starting comprehensive seed data initialization...");
@@ -37,6 +38,19 @@ public class DataInitializer implements CommandLineRunner {
         } else {
             log.info("Database already contains data ({} departments, {} questions). Skipping automatic seed.",
                     departmentRepository.count(), questionRepository.count());
+        }
+
+        // Migrate existing exams to ensure courses collection is populated
+        try {
+            List<Exam> existingExams = examRepository.findAll();
+            for (Exam e : existingExams) {
+                if ((e.getCourses() == null || e.getCourses().isEmpty()) && e.getCourse() != null) {
+                    e.setCourses(new HashSet<>(Collections.singleton(e.getCourse())));
+                    examRepository.save(e);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Migration for exam courses collection skipped: {}", ex.getMessage());
         }
     }
 

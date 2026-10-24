@@ -17,8 +17,11 @@ export interface Exam {
   title: string;
   subjectId: string;
   subjectName: string;
-  courseId: string;
-  courseName: string;
+  courseId?: string;
+  courseName?: string;
+  courseIds?: string[];
+  courseNames?: string[];
+  courseCodes?: string[];
   semester: string;
   academicYear: string;
   durationMinutes: number;
@@ -36,7 +39,8 @@ export interface Exam {
 export interface ExamRequest {
   title: string;
   subjectId: string;
-  courseId: string;
+  courseId?: string;
+  courseIds?: string[];
   semester: string;
   academicYear: string;
   durationMinutes: number;
@@ -48,3 +52,4 @@ export interface ExamRequest {
   numberOfSituations?: number;
   regenerateQuestions?: boolean;
 }
+

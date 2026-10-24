@@ -13,9 +13,9 @@ import java.util.UUID;
 @Repository
 public interface ExamRepository extends JpaRepository<Exam, UUID> {
     
-    @Query("SELECT e FROM Exam e WHERE " +
+    @Query("SELECT DISTINCT e FROM Exam e LEFT JOIN e.courses c WHERE " +
            "(:subjectId IS NULL OR e.subject.id = :subjectId) AND " +
-           "(:courseId IS NULL OR e.course.id = :courseId) AND " +
+           "(:courseId IS NULL OR e.course.id = :courseId OR c.id = :courseId) AND " +
            "(LOWER(e.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(e.code) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Exam> findExamsWithFilters(
             @Param("subjectId") UUID subjectId,

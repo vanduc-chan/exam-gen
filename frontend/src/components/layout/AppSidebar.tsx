@@ -11,13 +11,15 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  GraduationCap as LogoIcon
+  GraduationCap as LogoIcon,
+  GitFork
 } from 'lucide-react';
 import { SidebarContext } from './MainLayout';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
   { path: '/', label: 'Trang chủ', icon: LayoutDashboard },
+  { path: '/structure-map', label: 'Sơ đồ đào tạo', icon: GitFork },
   { path: '/departments', label: 'Khoa', icon: Building2 },
   { path: '/department-groups', label: 'Tổ bộ môn', icon: Users },
   { path: '/subjects', label: 'Môn học', icon: BookOpen },

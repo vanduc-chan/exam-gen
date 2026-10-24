@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Department, DepartmentRequest } from '@/types/department';
 import { departmentService } from '@/services/departmentService';
 import DepartmentTable from '@/components/department/DepartmentTable';
 import DepartmentForm from '@/components/department/DepartmentForm';
 import DepartmentImportModal from '@/components/department/DepartmentImportModal';
 import { Button } from '@/components/ui/button';
-import { Plus, Upload } from 'lucide-react';
+import { Plus, Upload, GitFork } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Pagination,
@@ -106,6 +106,11 @@ const DepartmentPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Quản lý Khoa</h2>
         <div className="flex flex-wrap items-center gap-2">
+          <Link to="/structure-map">
+            <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+              <GitFork className="mr-2 h-4 w-4 text-indigo-600" /> Sơ đồ đào tạo
+            </Button>
+          </Link>
           <Button variant="outline" onClick={() => setIsImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" /> Nhập Excel
           </Button>

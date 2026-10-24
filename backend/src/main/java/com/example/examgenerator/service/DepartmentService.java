@@ -2,6 +2,7 @@ package com.example.examgenerator.service;
 
 import com.example.examgenerator.dto.request.DepartmentRequest;
 import com.example.examgenerator.dto.response.DepartmentResponse;
+import com.example.examgenerator.dto.response.StructureTreeNode;
 import com.example.examgenerator.entity.Department;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.DepartmentMapper;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,6 +37,69 @@ public class DepartmentService {
     private final DepartmentGroupRepository departmentGroupRepository;
     private final SubjectRepository subjectRepository;
     private final DepartmentMapper departmentMapper;
+
+    @Transactional(readOnly = true)
+    public StructureTreeNode getStructureTree() {
+        StructureTreeNode root = StructureTreeNode.builder()
+                .id("root")
+                .name("Trường Quân sự Quân khu 3")
+                .type("root")
+                .code("QSQK3")
+                .children(new ArrayList<>())
+                .build();
+
+        List<Department> departments = departmentRepository.findAll();
+        List<DepartmentGroup> groups = departmentGroupRepository.findAll();
+        List<Subject> subjects = subjectRepository.findAll();
+
+        for (Department dept : departments) {
+            StructureTreeNode deptNode = StructureTreeNode.builder()
+                    .id(dept.getId() != null ? dept.getId().toString() : UUID.randomUUID().toString())
+                    .name(dept.getName())
+                    .code(dept.getCode())
+                    .type("khoa")
+                    .description(dept.getDescription())
+                    .children(new ArrayList<>())
+                    .build();
+
+            List<DepartmentGroup> deptGroups = groups.stream()
+                    .filter(g -> g.getDepartment() != null && g.getDepartment().getId().equals(dept.getId()))
+                    .collect(Collectors.toList());
+
+            for (DepartmentGroup group : deptGroups) {
+                StructureTreeNode groupNode = StructureTreeNode.builder()
+                        .id(group.getId() != null ? group.getId().toString() : UUID.randomUUID().toString())
+                        .name(group.getName())
+                        .code(group.getCode())
+                        .type("bo_mon")
+                        .description(group.getDescription())
+                        .children(new ArrayList<>())
+                        .build();
+
+                List<Subject> groupSubjects = subjects.stream()
+                        .filter(s -> s.getDepartmentGroup() != null && s.getDepartmentGroup().getId().equals(group.getId()))
+                        .collect(Collectors.toList());
+
+                for (Subject sub : groupSubjects) {
+                    StructureTreeNode subNode = StructureTreeNode.builder()
+                            .id(sub.getId() != null ? sub.getId().toString() : UUID.randomUUID().toString())
+                            .name(sub.getSubjectName())
+                            .code(sub.getSubjectCode())
+                            .type("mon_hoc")
+                            .description(sub.getDescription())
+                            .children(new ArrayList<>())
+                            .build();
+                    groupNode.getChildren().add(subNode);
+                }
+
+                deptNode.getChildren().add(groupNode);
+            }
+
+            root.getChildren().add(deptNode);
+        }
+
+        return root;
+    }
 
     @Transactional(readOnly = true)
     public List<DepartmentResponse> getAllDepartments() {

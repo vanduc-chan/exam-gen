@@ -15,6 +15,7 @@ import QuestionEditPage from '@/app/question/edit/page';
 import ExamPage from '@/app/exam/page';
 import ExamGeneratePage from '@/app/exam/generate/page';
 import ExamEditPage from '@/app/exam/edit/page';
+import StructureMapPage from '@/app/structure-map/page';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       <Toaster position="top-right" richColors closeButton duration={3500} />
       <Routes>
         <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
+        <Route path="/structure-map" element={<MainLayout><StructureMapPage /></MainLayout>} />
         <Route path="/departments" element={<MainLayout><DepartmentPage /></MainLayout>} />
         <Route path="/department-groups" element={<MainLayout><DepartmentGroupPage /></MainLayout>} />
         <Route path="/subjects" element={<MainLayout><SubjectPage /></MainLayout>} />

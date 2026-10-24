@@ -32,11 +32,12 @@ import { AlertCircle, BookOpen, Layers, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableMultiSelect } from '@/components/ui/searchable-multi-select';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Vui lòng nhập tên đợt sinh đề'),
   subjectId: z.string().min(1, 'Vui lòng chọn môn học'),
-  courseId: z.string().min(1, 'Vui lòng chọn đối tượng thi'),
+  courseIds: z.array(z.string()).min(1, 'Vui lòng chọn ít nhất một đối tượng thi'),
   semester: z.string().optional().default('1'),
   academicYear: z.string().min(1, 'Vui lòng chọn năm học'),
   durationMinutes: z.coerce.number().optional().default(90),
@@ -68,7 +69,7 @@ const ExamGeneratePage = () => {
     defaultValues: {
       title: '',
       subjectId: '',
-      courseId: '',
+      courseIds: [],
       semester: '1',
       academicYear: '2023-2024',
       durationMinutes: 90,
@@ -135,7 +136,10 @@ const ExamGeneratePage = () => {
     try {
       setIsSubmitting(true);
       setErrorMsg('');
-      await examService.generate(data);
+      await examService.generate({
+        ...data,
+        courseId: data.courseIds[0],
+      });
       toast.success('Sinh đề thi thành công');
       navigate(fromUrl || '/exams');
     } catch (error: any) {
@@ -206,20 +210,20 @@ const ExamGeneratePage = () => {
 
               <FormField
                 control={form.control}
-                name="courseId"
+                name="courseIds"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Đối tượng thi <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <SearchableSelect
+                      <SearchableMultiSelect
                         options={courses.map(c => ({
                           value: c.id,
                           label: `${c.name} (${c.courseCode})`,
                           subLabel: c.courseCode
                         }))}
-                        value={field.value}
+                        values={field.value || []}
                         onChange={field.onChange}
-                        placeholder="Chọn đối tượng thi..."
+                        placeholder="Chọn một hoặc nhiều đối tượng thi..."
                         searchPlaceholder="Tìm kiếm đối tượng thi..."
                       />
                     </FormControl>

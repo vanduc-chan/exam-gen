@@ -1,9 +1,11 @@
 package com.example.examgenerator.service;
 
+import com.example.examgenerator.entity.Course;
 import com.example.examgenerator.entity.Exam;
 import com.example.examgenerator.entity.ExamDetail;
 import com.example.examgenerator.entity.ExamQuestion;
 import com.example.examgenerator.enumerate.ExamStatus;
+import com.example.examgenerator.enumerate.QuestionType;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.repository.ExamDetailRepository;
 import com.example.examgenerator.repository.ExamQuestionRepository;
@@ -19,8 +21,11 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -61,9 +66,8 @@ public class ExportService {
      * - Section 2: Exam pages with 10mm margins on all sides.
      * - Exam distribution: max 4 exams per page, ensuring at least 1 exam is on the last page with signatures.
      */
-    private void exportExamFile(XWPFDocument document, Exam exam, List<ExamDetail> details) {
+    private void createCoverPage(XWPFDocument document, Exam exam, List<ExamDetail> details, boolean isAnswer) {
         int currentYear = LocalDate.now().getYear();
-        int currentMonth = LocalDate.now().getMonthValue();
 
         String deptName = "KHOA BINH CHỦNG";
         if (exam.getSubject() != null && exam.getSubject().getDepartmentGroup() != null
@@ -73,7 +77,12 @@ public class ExportService {
         }
 
         String courseName = "Đào tạo Tiểu đội trưởng Công binh";
-        if (exam.getCourse() != null && exam.getCourse().getName() != null) {
+        if (exam.getCourses() != null && !exam.getCourses().isEmpty()) {
+            courseName = exam.getCourses().stream()
+                    .map(Course::getName)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.joining(", "));
+        } else if (exam.getCourse() != null && exam.getCourse().getName() != null) {
             courseName = exam.getCourse().getName();
         }
 
@@ -87,14 +96,26 @@ public class ExportService {
             academicYear = exam.getAcademicYear().trim();
         }
 
-        String title = (exam.getTitle() != null && !exam.getTitle().trim().isEmpty())
+        String rawTitle = (exam.getTitle() != null && !exam.getTitle().trim().isEmpty())
                 ? exam.getTitle().toUpperCase()
-                : "ĐỀ THI TỐT NGHIỆP";
+                : (isAnswer ? "ĐÁP ÁN THI TỐT NGHIỆP" : "ĐỀ THI TỐT NGHIỆP");
 
-        // =        // 1. COVER PAGE (BÌA ĐỀ)
-        // ==========================================
+        String title;
+        if (isAnswer) {
+            if (rawTitle.contains("ĐỀ THI")) {
+                title = rawTitle.replace("ĐỀ THI", "ĐÁP ÁN");
+            } else if (rawTitle.startsWith("THI ")) {
+                title = "ĐÁP ÁN " + rawTitle;
+            } else if (!rawTitle.contains("ĐÁP ÁN")) {
+                title = "ĐÁP ÁN " + rawTitle;
+            } else {
+                title = rawTitle;
+            }
+        } else {
+            title = rawTitle;
+        }
 
-        // Header Table (2 columns: School/Dept on left 4000 dxa, Motto on right 5355 dxa)
+        // Header Table (2 columns: School/Dept on left 4150 dxa, Motto on right 5488 dxa)
         XWPFTable headTable = document.createTable(1, 2);
         headTable.setWidth("100%");
         headTable.removeBorders();
@@ -128,13 +149,12 @@ public class ExportService {
         XWPFRun r1 = p1.createRun();
         r1.setFontFamily("Times New Roman");
         r1.setFontSize(13);
-        r1.setBold(true);
         r1.setText("TRƯỜNG QUÂN SỰ QUÂN KHU 3");
 
         XWPFParagraph p2 = cLeft.addParagraph();
         p2.setAlignment(ParagraphAlignment.CENTER);
         p2.setSpacingBefore(0);
-        p2.setSpacingAfter(80);
+        p2.setSpacingAfter(40);
         XWPFRun r2 = p2.createRun();
         r2.setFontFamily("Times New Roman");
         r2.setFontSize(13);
@@ -160,7 +180,7 @@ public class ExportService {
         XWPFParagraph p4 = cRight.addParagraph();
         p4.setAlignment(ParagraphAlignment.CENTER);
         p4.setSpacingBefore(0);
-        p4.setSpacingAfter(60);
+        p4.setSpacingAfter(40);
         XWPFRun r4 = p4.createRun();
         r4.setFontFamily("Times New Roman");
         r4.setFontSize(13);
@@ -171,14 +191,14 @@ public class ExportService {
         XWPFParagraph p5 = cRight.addParagraph();
         p5.setAlignment(ParagraphAlignment.CENTER);
         p5.setSpacingBefore(0);
-        p5.setSpacingAfter(80);
+        p5.setSpacingAfter(0);
         XWPFRun r5 = p5.createRun();
         r5.setFontFamily("Times New Roman");
         r5.setFontSize(13);
         r5.setItalic(true);
         r5.setText("Hải Phòng, ngày       tháng       năm " + currentYear);
 
-        // Sub-header Table (MẬT & PHÊ DUYỆT on left, BỘ ĐỀ on right)
+        // Sub Table for "MẬT", "PHÊ DUYỆT" & "BỘ ĐỀ: XX"
         XWPFTable subTable = document.createTable(1, 2);
         subTable.setWidth("100%");
         subTable.removeBorders();
@@ -221,10 +241,9 @@ public class ExportService {
         matR.setBold(true);
         matR.setText("MẬT");
 
-        // Below MẬT: Xuống 1 hàng nữa rồi tới PHÊ DUYỆT căn giữa giống chữ MẬT
         XWPFParagraph pApprove = subLeft.addParagraph();
         pApprove.setAlignment(ParagraphAlignment.CENTER);
-        pApprove.setSpacingBefore(240); // Xuống 1 hàng nữa (~12pt)
+        pApprove.setSpacingBefore(200); // 10pt down from MẬT box
         pApprove.setSpacingAfter(30);
         XWPFRun rApprove = pApprove.createRun();
         rApprove.setFontFamily("Times New Roman");
@@ -319,6 +338,175 @@ public class ExportService {
         setupDoubleBorder(pgBordersCover.addNewBottom());
         setupDoubleBorder(pgBordersCover.addNewLeft());
         setupDoubleBorder(pgBordersCover.addNewRight());
+    }
+
+    private void createGradingRubricPage(XWPFDocument document, Exam exam, List<ExamDetail> details) {
+        // Spacing before header
+        XWPFParagraph pHeader = document.createParagraph();
+        pHeader.setAlignment(ParagraphAlignment.CENTER);
+        pHeader.setSpacingBefore(400); // ~20pt
+        pHeader.setSpacingAfter(60);
+        XWPFRun rHeader = pHeader.createRun();
+        rHeader.setFontFamily("Times New Roman");
+        rHeader.setFontSize(14);
+        rHeader.setBold(true);
+        rHeader.setText("THỐNG NHẤT BIỂU ĐIỂM");
+
+        XWPFParagraph pSubHeader = document.createParagraph();
+        pSubHeader.setAlignment(ParagraphAlignment.CENTER);
+        pSubHeader.setSpacingBefore(0);
+        pSubHeader.setSpacingAfter(400);
+        XWPFRun rSubHeader = pSubHeader.createRun();
+        rSubHeader.setFontFamily("Times New Roman");
+        rSubHeader.setFontSize(13);
+        rSubHeader.setItalic(true);
+        rSubHeader.setText("Chấm theo thang điểm 10");
+
+        // Inspect questions of first detail
+        List<ExamQuestion> sampleQuestions = (details != null && !details.isEmpty())
+                ? examQuestionRepository.findByExamDetailId(details.get(0).getId())
+                : Collections.emptyList();
+
+        int qCount = Math.max(1, sampleQuestions.size());
+        if (qCount == 2) {
+            // Câu 1: 4,0 điểm
+            XWPFParagraph pQ1 = document.createParagraph();
+            pQ1.setAlignment(ParagraphAlignment.LEFT);
+            pQ1.setSpacingBefore(120);
+            pQ1.setSpacingAfter(40);
+            XWPFRun rQ1 = pQ1.createRun();
+            rQ1.setFontFamily("Times New Roman");
+            rQ1.setFontSize(13);
+            rQ1.setBold(true);
+            rQ1.setText("Câu 1: 4,0 điểm");
+
+            XWPFParagraph pQ1Desc = document.createParagraph();
+            pQ1Desc.setAlignment(ParagraphAlignment.LEFT);
+            pQ1Desc.setSpacingBefore(0);
+            pQ1Desc.setSpacingAfter(180);
+            XWPFRun rQ1Desc = pQ1Desc.createRun();
+            rQ1Desc.setFontFamily("Times New Roman");
+            rQ1Desc.setFontSize(13);
+            rQ1Desc.setText("Trả lời đúng đủ nội dung, rõ ràng, hiểu bản chất.");
+
+            // Câu 2: 5,0 điểm
+            XWPFParagraph pQ2 = document.createParagraph();
+            pQ2.setAlignment(ParagraphAlignment.LEFT);
+            pQ2.setSpacingBefore(120);
+            pQ2.setSpacingAfter(40);
+            XWPFRun rQ2 = pQ2.createRun();
+            rQ2.setFontFamily("Times New Roman");
+            rQ2.setFontSize(13);
+            rQ2.setBold(true);
+            rQ2.setText("Câu 2: 5,0 điểm");
+
+            XWPFParagraph pQ2Desc = document.createParagraph();
+            pQ2Desc.setAlignment(ParagraphAlignment.LEFT);
+            pQ2Desc.setSpacingBefore(0);
+            pQ2Desc.setSpacingAfter(180);
+            XWPFRun rQ2Desc = pQ2Desc.createRun();
+            rQ2Desc.setFontFamily("Times New Roman");
+            rQ2Desc.setFontSize(13);
+            rQ2Desc.setText("Khẩu lệnh to, rõ, đúng đủ nội dung. Tác phong chỉ huy tốt.");
+        } else {
+            // General case for N questions: distribute 9.0 points among N questions + 1 point conduct
+            double baseScore = Math.floor((9.0 / qCount) * 10) / 10.0;
+            double remainder = Math.round((9.0 - (baseScore * qCount)) * 10.0) / 10.0;
+
+            for (int i = 0; i < qCount; i++) {
+                ExamQuestion eq = sampleQuestions.get(i);
+                double score = baseScore + (i == 0 ? remainder : 0.0);
+                if (eq.getScore() != null && eq.getScore() > 0) {
+                    score = eq.getScore();
+                }
+
+                XWPFParagraph pQ = document.createParagraph();
+                pQ.setAlignment(ParagraphAlignment.LEFT);
+                pQ.setSpacingBefore(120);
+                pQ.setSpacingAfter(40);
+                XWPFRun rQ = pQ.createRun();
+                rQ.setFontFamily("Times New Roman");
+                rQ.setFontSize(13);
+                rQ.setBold(true);
+                rQ.setText("Câu " + (i + 1) + ": " + String.format(java.util.Locale.US, "%.1f", score).replace(".", ",") + " điểm");
+
+                XWPFParagraph pQDesc = document.createParagraph();
+                pQDesc.setAlignment(ParagraphAlignment.LEFT);
+                pQDesc.setSpacingBefore(0);
+                pQDesc.setSpacingAfter(180);
+                XWPFRun rQDesc = pQDesc.createRun();
+                rQDesc.setFontFamily("Times New Roman");
+                rQDesc.setFontSize(13);
+
+                QuestionType type = eq.getQuestion() != null ? eq.getQuestion().getType() : QuestionType.LY_THUYET;
+                if (type == QuestionType.THUC_HANH) {
+                    rQDesc.setText("Khẩu lệnh to, rõ, đúng đủ nội dung. Tác phong chỉ huy tốt.");
+                } else if (type == QuestionType.TU_LUAN) {
+                    rQDesc.setText("Phân tích logic, liên hệ thực tiễn chặt chẽ.");
+                } else if (type == QuestionType.TINH_HUONG) {
+                    rQDesc.setText("Xử trí nhanh, chính xác, đúng nguyên tắc chiến thuật.");
+                } else {
+                    rQDesc.setText("Trả lời đúng đủ nội dung, rõ ràng, hiểu bản chất.");
+                }
+            }
+        }
+
+        // Lễ tiết tác phong: 01 điểm
+        XWPFParagraph pConduct = document.createParagraph();
+        pConduct.setAlignment(ParagraphAlignment.LEFT);
+        pConduct.setSpacingBefore(120);
+        pConduct.setSpacingAfter(180);
+        XWPFRun rConduct = pConduct.createRun();
+        rConduct.setFontFamily("Times New Roman");
+        rConduct.setFontSize(13);
+        rConduct.setBold(true);
+        rConduct.setText("Lễ tiết tác phong: 01 điểm");
+
+        // Section Break after Rubric Page: standard 20mm/25mm margins without border
+        XWPFParagraph pSectBreak = document.createParagraph();
+        CTP ctp = pSectBreak.getCTP();
+        CTPPr ppr = ctp.getPPr() != null ? ctp.getPPr() : ctp.addNewPPr();
+        CTSectPr sectPrRubric = ppr.addNewSectPr();
+
+        CTPageSz szRubric = sectPrRubric.addNewPgSz();
+        szRubric.setW(BigInteger.valueOf(11906));
+        szRubric.setH(BigInteger.valueOf(16838));
+
+        CTPageMar marRubric = sectPrRubric.addNewPgMar();
+        marRubric.setTop(BigInteger.valueOf(1417));    // 25mm
+        marRubric.setBottom(BigInteger.valueOf(1134)); // 20mm
+        marRubric.setLeft(BigInteger.valueOf(1417));   // 25mm
+        marRubric.setRight(BigInteger.valueOf(850));   // 15mm
+
+        CTPageBorders pgBordersRubric = sectPrRubric.addNewPgBorders();
+        pgBordersRubric.setOffsetFrom(STPageBorderOffset.TEXT);
+        pgBordersRubric.addNewTop().setVal(STBorder.NONE);
+        pgBordersRubric.addNewBottom().setVal(STBorder.NONE);
+        pgBordersRubric.addNewLeft().setVal(STBorder.NONE);
+        pgBordersRubric.addNewRight().setVal(STBorder.NONE);
+    }
+
+    private void exportExamFile(XWPFDocument document, Exam exam, List<ExamDetail> details) {
+        int currentYear = LocalDate.now().getYear();
+        int currentMonth = LocalDate.now().getMonthValue();
+
+        String courseName = "Đào tạo Tiểu đội trưởng Công binh";
+        if (exam.getCourses() != null && !exam.getCourses().isEmpty()) {
+            courseName = exam.getCourses().stream()
+                    .map(Course::getName)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.joining(", "));
+        } else if (exam.getCourse() != null && exam.getCourse().getName() != null) {
+            courseName = exam.getCourse().getName();
+        }
+
+        String subjectName = "Kỹ thuật Công binh";
+        if (exam.getSubject() != null && exam.getSubject().getSubjectName() != null) {
+            subjectName = exam.getSubject().getSubjectName();
+        }
+
+        // 1. COVER PAGE (BÌA ĐỀ)
+        createCoverPage(document, exam, details, false);
 
         // ==========================================
         // 2. EXAM PAGES (TRANG ĐỀ THI)
@@ -519,6 +707,13 @@ public class ExportService {
      * Export Answer File with answer guidelines for each question.
      */
     private void exportAnswerFile(XWPFDocument document, Exam exam, List<ExamDetail> details) {
+        // 1. Cover Page for Answer file
+        createCoverPage(document, exam, details, true);
+
+        // 2. Grading Rubric (THỐNG NHẤT BIỂU ĐIỂM)
+        createGradingRubricPage(document, exam, details);
+
+        // 3. Answer Content for each Exam Set
         for (int dIndex = 0; dIndex < details.size(); dIndex++) {
             ExamDetail detail = details.get(dIndex);
             List<ExamQuestion> questions = examQuestionRepository.findByExamDetailId(detail.getId());
@@ -531,6 +726,8 @@ public class ExportService {
 
             XWPFParagraph header = document.createParagraph();
             header.setAlignment(ParagraphAlignment.CENTER);
+            header.setSpacingBefore(100);
+            header.setSpacingAfter(100);
             XWPFRun runHeader = header.createRun();
             runHeader.setBold(true);
             runHeader.setFontFamily("Times New Roman");
@@ -541,6 +738,8 @@ public class ExportService {
                 ExamQuestion eq = questions.get(i);
                 XWPFParagraph qParagraph = document.createParagraph();
                 qParagraph.setAlignment(ParagraphAlignment.BOTH);
+                qParagraph.setSpacingBefore(80);
+                qParagraph.setSpacingAfter(40);
 
                 XWPFRun qRun = qParagraph.createRun();
                 qRun.setBold(true);
@@ -552,6 +751,8 @@ public class ExportService {
                 // "ĐÁP ÁN" Header
                 XWPFParagraph ansHeader = document.createParagraph();
                 ansHeader.setAlignment(ParagraphAlignment.CENTER);
+                ansHeader.setSpacingBefore(60);
+                ansHeader.setSpacingAfter(60);
                 XWPFRun runAnsHeader = ansHeader.createRun();
                 runAnsHeader.setBold(true);
                 runAnsHeader.setFontFamily("Times New Roman");
@@ -575,7 +776,7 @@ public class ExportService {
                         lineRun.setFontFamily("Times New Roman");
                         lineRun.setFontSize(13);
 
-                        boolean isSubhead = lineStr.matches("^(?i)[a-z0-9]+\\s*[\\)\\.].*");
+                        boolean isSubhead = lineStr.matches("^(?i)[a-z0-9]+\\s*(\\)|\\.).*");
                         boolean isBullet = lineStr.startsWith("-") || lineStr.startsWith("+") || lineStr.startsWith("*") || lineStr.startsWith("•");
 
                         if (isSubhead) {
@@ -600,6 +801,27 @@ public class ExportService {
                 }
             }
         }
+
+        // Section 3 (Answers): Margins 10mm without borders
+        CTBody body = document.getDocument().getBody();
+        CTSectPr bodySectPr = body.isSetSectPr() ? body.getSectPr() : body.addNewSectPr();
+
+        CTPageSz szAns = bodySectPr.addNewPgSz();
+        szAns.setW(BigInteger.valueOf(11906));
+        szAns.setH(BigInteger.valueOf(16838));
+
+        CTPageMar marAns = bodySectPr.addNewPgMar();
+        marAns.setTop(BigInteger.valueOf(567));    // 10mm
+        marAns.setBottom(BigInteger.valueOf(567)); // 10mm
+        marAns.setLeft(BigInteger.valueOf(567));   // 10mm
+        marAns.setRight(BigInteger.valueOf(567));  // 10mm
+
+        CTPageBorders pgBordersAns = bodySectPr.addNewPgBorders();
+        pgBordersAns.setOffsetFrom(STPageBorderOffset.TEXT);
+        pgBordersAns.addNewTop().setVal(STBorder.NONE);
+        pgBordersAns.addNewBottom().setVal(STBorder.NONE);
+        pgBordersAns.addNewLeft().setVal(STBorder.NONE);
+        pgBordersAns.addNewRight().setVal(STBorder.NONE);
     }
 
     /**

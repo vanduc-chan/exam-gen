@@ -18,6 +18,9 @@ public class ExamResponse {
     private String subjectName;
     private UUID courseId;
     private String courseName;
+    private java.util.List<UUID> courseIds;
+    private java.util.List<String> courseNames;
+    private java.util.List<String> courseCodes;
     private String semester;
     private String academicYear;
     private Integer durationMinutes;

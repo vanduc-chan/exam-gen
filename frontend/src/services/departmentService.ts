@@ -35,5 +35,11 @@ export const departmentService = {
       },
     });
     return response.data;
+  },
+
+  getStructureTree: async () => {
+    const response = await api.get<ApiResponse<import('@/types/structureTree').StructureTreeNode>>('/departments/tree');
+    return response.data;
   }
 };
+

@@ -31,6 +31,11 @@ public class DepartmentController {
         return ResponseEntity.ok(ApiResponse.success(departmentService.getAllDepartments()));
     }
 
+    @GetMapping("/tree")
+    public ResponseEntity<ApiResponse<com.example.examgenerator.dto.response.StructureTreeNode>> getStructureTree() {
+        return ResponseEntity.ok(ApiResponse.success(departmentService.getStructureTree()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<DepartmentResponse>> getDepartmentById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(departmentService.getDepartmentById(id)));

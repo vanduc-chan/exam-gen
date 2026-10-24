@@ -17,8 +17,8 @@ public class ExamRequest {
     @NotNull(message = "Môn học không được để trống")
     private UUID subjectId;
 
-    @NotNull(message = "Đối tượng thi không được để trống")
     private UUID courseId;
+    private java.util.List<UUID> courseIds;
 
     private String semester = "1";
 

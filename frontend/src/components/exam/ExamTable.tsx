@@ -57,8 +57,23 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
             <TableRow key={exam.id}>
               <TableCell className="font-medium text-xs text-muted-foreground">{exam.code}</TableCell>
               <TableCell className="font-medium">{exam.title}</TableCell>
-              <TableCell>{exam.subjectName}</TableCell>
-              <TableCell>{exam.courseName}</TableCell>
+              <TableCell>
+                {exam.courseNames && exam.courseNames.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 max-w-[220px]">
+                    {exam.courseNames.map((cName, idx) => (
+                      <Badge
+                        key={idx}
+                        variant="secondary"
+                        className="text-[11px] font-normal py-0 px-1.5 bg-slate-100 text-slate-800 border-slate-200"
+                      >
+                        {cName}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span>{exam.courseName || '-'}</span>
+                )}
+              </TableCell>
               <TableCell className="text-center">{exam.numberOfExams}</TableCell>
               <TableCell>{getStatusBadge(exam.status)}</TableCell>
               <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
