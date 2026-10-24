@@ -217,7 +217,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
             name="score"
@@ -265,7 +265,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
               </div>
             </FormItem>
           )}
-        />
+        /> */}
 
         <div className="flex justify-end gap-4">
           <Button type="button" variant="outline" onClick={() => onCancel ? onCancel() : navigate(fromUrl || '/questions')}>

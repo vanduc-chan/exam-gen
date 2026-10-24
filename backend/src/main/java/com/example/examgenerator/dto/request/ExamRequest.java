@@ -20,8 +20,7 @@ public class ExamRequest {
     @NotNull(message = "Đối tượng thi không được để trống")
     private UUID courseId;
 
-    @NotBlank(message = "Học kỳ không được để trống")
-    private String semester;
+    private String semester = "1";
 
     @NotBlank(message = "Năm học không được để trống")
     private String academicYear;

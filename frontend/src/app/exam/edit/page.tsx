@@ -32,14 +32,15 @@ import { toast } from 'sonner';
 import { AlertCircle, Layers, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Vui lòng nhập tên đợt sinh đề'),
   subjectId: z.string().min(1, 'Vui lòng chọn môn học'),
   courseId: z.string().min(1, 'Vui lòng chọn đối tượng thi'),
-  semester: z.string().min(1, 'Vui lòng chọn học kỳ'),
+  semester: z.string().optional().default('1'),
   academicYear: z.string().min(1, 'Vui lòng chọn năm học'),
-  durationMinutes: z.coerce.number().min(1, 'Thời gian thi phải lớn hơn 0'),
+  durationMinutes: z.coerce.number().optional().default(90),
   examStructure: z.nativeEnum(ExamStructureType),
   numberOfExams: z.coerce.number().min(1, 'Số lượng đề tối thiểu là 1').max(20, 'Tối đa 20 đề mỗi đợt'),
   numberOfTheories: z.coerce.number().min(0, 'Số câu không được âm'),
@@ -237,20 +238,19 @@ const ExamEditPage = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Môn học <span className="text-destructive">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn môn học..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {subjects.map(sub => (
-                          <SelectItem key={sub.id} value={sub.id}>
-                            {sub.subjectName} ({sub.subjectCode})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={subjects.map(sub => ({
+                          value: sub.id,
+                          label: `${sub.subjectName} (${sub.subjectCode})`,
+                          subLabel: sub.subjectCode
+                        }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Chọn môn học..."
+                        searchPlaceholder="Tìm kiếm môn học..."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -262,43 +262,19 @@ const ExamEditPage = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Đối tượng thi <span className="text-destructive">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn đối tượng thi..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {courses.map(c => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name} ({c.courseCode})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="semester"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Học kỳ <span className="text-destructive">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn học kỳ..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="1">Học kỳ 1</SelectItem>
-                        <SelectItem value="2">Học kỳ 2</SelectItem>
-                        <SelectItem value="3">Học kỳ 3 (Hè)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={courses.map(c => ({
+                          value: c.id,
+                          label: `${c.name} (${c.courseCode})`,
+                          subLabel: c.courseCode
+                        }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Chọn đối tượng thi..."
+                        searchPlaceholder="Tìm kiếm đối tượng thi..."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -311,21 +287,7 @@ const ExamEditPage = () => {
                   <FormItem>
                     <FormLabel>Năm học <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="VD: 2023-2024" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="durationMinutes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Thời gian làm bài (Phút)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="1" {...field} />
+                      <Input placeholder="VD: 2024-2025" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
