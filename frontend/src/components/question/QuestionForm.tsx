@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import {
   Select,
   SelectContent,
@@ -194,9 +195,17 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nội dung câu hỏi</FormLabel>
+              <div className="flex items-center justify-between">
+                <FormLabel>Nội dung câu hỏi <span className="text-destructive">*</span></FormLabel>
+                <span className="text-xs text-muted-foreground">Hỗ trợ dán văn bản hoặc bảng biểu từ Word, chèn ký hiệu mũi tên</span>
+              </div>
               <FormControl>
-                <Textarea placeholder="Nhập nội dung câu hỏi..." className="min-h-[120px]" {...field} />
+                <RichTextEditor
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Nhập nội dung câu hỏi hoặc dán trực tiếp từ Word..."
+                  height={280}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -208,9 +217,17 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           name="answer"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Đáp án / Hướng dẫn giải</FormLabel>
+              <div className="flex items-center justify-between">
+                <FormLabel>Đáp án / Hướng dẫn giải / Barem điểm</FormLabel>
+                <span className="text-xs text-muted-foreground">Hỗ trợ dán bảng biểu (merge cells), gạch đầu dòng, in đậm, chèn mũi tên</span>
+              </div>
               <FormControl>
-                <Textarea placeholder="Nhập đáp án..." className="min-h-[100px]" {...field} />
+                <RichTextEditor
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Nhập đáp án, barem biểu điểm hoặc dán bảng từ Word..."
+                  height={450}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

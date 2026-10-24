@@ -10,6 +10,7 @@ import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.repository.ExamDetailRepository;
 import com.example.examgenerator.repository.ExamQuestionRepository;
 import com.example.examgenerator.repository.ExamRepository;
+import com.example.examgenerator.util.HtmlToWordRenderer;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.xwpf.usermodel.*;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
@@ -572,17 +573,8 @@ public class ExportService {
 
                 for (int qIdx = 0; qIdx < questions.size(); qIdx++) {
                     ExamQuestion eq = questions.get(qIdx);
-                    XWPFParagraph qParagraph = cell.addParagraph();
-                    qParagraph.setAlignment(ParagraphAlignment.BOTH);
-                    qParagraph.setSpacingBefore(0);
-                    qParagraph.setSpacingAfter(30);
-
-                    XWPFRun qRun = qParagraph.createRun();
-                    qRun.setBold(true);
-                    qRun.setFontFamily("Times New Roman");
-                    qRun.setFontSize(13);
                     String contentStr = eq.getQuestion().getContent();
-                    qRun.setText("Câu " + (qIdx + 1) + ": " + contentStr);
+                    HtmlToWordRenderer.renderToCell(cell, "Câu " + (qIdx + 1) + ": ", contentStr, "Times New Roman", 13);
                 }
 
                 currentDetailIdx++;
@@ -736,17 +728,21 @@ public class ExportService {
 
             for (int i = 0; i < questions.size(); i++) {
                 ExamQuestion eq = questions.get(i);
-                XWPFParagraph qParagraph = document.createParagraph();
-                qParagraph.setAlignment(ParagraphAlignment.BOTH);
-                qParagraph.setSpacingBefore(80);
-                qParagraph.setSpacingAfter(40);
-
-                XWPFRun qRun = qParagraph.createRun();
-                qRun.setBold(true);
-                qRun.setFontFamily("Times New Roman");
-                qRun.setFontSize(13);
                 String contentStr = eq.getQuestion().getContent();
-                qRun.setText("Câu " + (i + 1) + ": " + contentStr);
+                if (HtmlToWordRenderer.isHtml(contentStr)) {
+                    HtmlToWordRenderer.renderToDocument(document, "<p><strong>Câu " + (i + 1) + ": </strong>" + contentStr + "</p>", "Times New Roman", 13);
+                } else {
+                    XWPFParagraph qParagraph = document.createParagraph();
+                    qParagraph.setAlignment(ParagraphAlignment.BOTH);
+                    qParagraph.setSpacingBefore(80);
+                    qParagraph.setSpacingAfter(40);
+
+                    XWPFRun qRun = qParagraph.createRun();
+                    qRun.setBold(true);
+                    qRun.setFontFamily("Times New Roman");
+                    qRun.setFontSize(13);
+                    qRun.setText("Câu " + (i + 1) + ": " + contentStr);
+                }
 
                 // "ĐÁP ÁN" Header
                 XWPFParagraph ansHeader = document.createParagraph();
@@ -760,44 +756,7 @@ public class ExportService {
                 runAnsHeader.setText("ĐÁP ÁN");
 
                 if (eq.getQuestion().getAnswer() != null && !eq.getQuestion().getAnswer().trim().isEmpty()) {
-                    String[] answerLines = eq.getQuestion().getAnswer().split("\\r?\\n");
-                    boolean hasActiveSubhead = false;
-
-                    for (int lineIdx = 0; lineIdx < answerLines.length; lineIdx++) {
-                        String rawLine = answerLines[lineIdx];
-                        if (rawLine.trim().isEmpty()) continue;
-
-                        String lineStr = rawLine.trim();
-                        XWPFParagraph linePara = document.createParagraph();
-                        linePara.setAlignment(ParagraphAlignment.BOTH);
-                        linePara.setSpacingAfter(30);
-
-                        XWPFRun lineRun = linePara.createRun();
-                        lineRun.setFontFamily("Times New Roman");
-                        lineRun.setFontSize(13);
-
-                        boolean isSubhead = lineStr.matches("^(?i)[a-z0-9]+\\s*(\\)|\\.).*");
-                        boolean isBullet = lineStr.startsWith("-") || lineStr.startsWith("+") || lineStr.startsWith("*") || lineStr.startsWith("•");
-
-                        if (isSubhead) {
-                            hasActiveSubhead = true;
-                            linePara.setIndentationLeft(360);
-                            lineRun.setText(lineStr);
-                        } else if (isBullet) {
-                            int leftIndent = hasActiveSubhead ? 720 : 540;
-                            linePara.setIndentationLeft(leftIndent);
-                            lineRun.setText(lineStr);
-                        } else {
-                            boolean isTitle = (lineIdx == 0) || !hasActiveSubhead;
-                            if (isTitle) {
-                                lineRun.setBold(true);
-                                linePara.setIndentationLeft(180);
-                            } else {
-                                linePara.setIndentationLeft(360);
-                            }
-                            lineRun.setText(lineStr);
-                        }
-                    }
+                    HtmlToWordRenderer.renderToDocument(document, eq.getQuestion().getAnswer(), "Times New Roman", 13);
                 }
             }
         }

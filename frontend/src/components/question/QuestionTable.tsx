@@ -32,6 +32,22 @@ const getTypeLabel = (type: QuestionType) => {
   }
 };
 
+const stripHtml = (html?: string) => {
+  if (!html) return '';
+  try {
+    // 1. Remove soft hyphens (&shy; / \u00AD), zero-width characters, and non-breaking spaces
+    const cleaned = html
+      .replace(/&shy;/gi, '')
+      .replace(/[\u00AD\u200B\uFEFF]/g, '');
+
+    // 2. Decode HTML entities and extract text content via browser DOM
+    const doc = new DOMParser().parseFromString(cleaned, 'text/html');
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+  } catch {
+    return html.replace(/<[^>]*>?/gm, ' ').replace(/&shy;/gi, '').replace(/\s+/g, ' ').trim();
+  }
+};
+
 const QuestionTable: React.FC<QuestionTableProps> = ({ 
   questions, selectedIds, onSelectAll, onSelectOne, onEdit, onDelete 
 }) => {
@@ -67,8 +83,8 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
               </TableCell>
               <TableCell className="font-medium text-xs text-muted-foreground">{q.code}</TableCell>
               <TableCell className="max-w-[200px]">
-                <div className="line-clamp-2" title={q.content}>
-                  {q.content}
+                <div className="line-clamp-2" title={stripHtml(q.content)}>
+                  {stripHtml(q.content)}
                 </div>
               </TableCell>
               <TableCell>{q.subjectName}</TableCell>

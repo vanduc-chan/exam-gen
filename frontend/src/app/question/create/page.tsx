@@ -78,7 +78,7 @@ const QuestionCreatePage = () => {
   if (loading) return <div className="p-4 sm:p-8">Đang tải...</div>;
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Thêm mới Câu hỏi</h2>
         {/* <div className="flex gap-2">

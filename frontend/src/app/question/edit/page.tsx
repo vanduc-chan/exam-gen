@@ -61,7 +61,7 @@ const QuestionEditPage = () => {
   if (loading) return <div className="p-4 sm:p-8">Đang tải...</div>;
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold tracking-tight">Cập nhật Câu hỏi</h2>
       <div className="bg-white p-6 rounded-md border">
         <QuestionForm 

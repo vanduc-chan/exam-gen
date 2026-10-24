@@ -57,6 +57,7 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
             <TableRow key={exam.id}>
               <TableCell className="font-medium text-xs text-muted-foreground">{exam.code}</TableCell>
               <TableCell className="font-medium">{exam.title}</TableCell>
+              <TableCell>{exam.subjectName}</TableCell>
               <TableCell>
                 {exam.courseNames && exam.courseNames.length > 0 ? (
                   <div className="flex flex-wrap gap-1 max-w-[220px]">

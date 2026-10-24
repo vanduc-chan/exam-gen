@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { StructureTreeNode } from '@/types/structureTree';
 import { Button } from '@/components/ui/button';
 import {
-  Maximize2,
-  Minimize2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -27,7 +25,6 @@ export const TrainingMindmap: React.FC<TrainingMindmapProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Store references for toolbar controls
   const controlsRef = useRef<{
@@ -371,18 +368,10 @@ export const TrainingMindmap: React.FC<TrainingMindmapProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [data]);
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
-
   return (
     <div
-      className={`relative w-full rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm overflow-hidden flex flex-col ${
-        isFullscreen
-          ? 'fixed inset-0 z-[10000] w-screen h-screen bg-slate-50 rounded-none'
-          : className
-      }`}
-      style={{ height: isFullscreen ? '100vh' : height }}
+      className={`relative w-full rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm overflow-hidden flex flex-col ${className}`}
+      style={{ height }}
     >
       {/* Legend & Summary Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-white border-b border-slate-200 z-10 shrink-0">
@@ -404,19 +393,6 @@ export const TrainingMindmap: React.FC<TrainingMindmapProps> = ({
             <span className="w-2.5 h-2.5 rounded-sm bg-pink-500 inline-block"></span>
             <span className="text-slate-600">Môn học</span>
           </div>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleFullscreen}
-            className="h-8 px-2 text-xs text-slate-600 hover:text-slate-900"
-            title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình'}
-          >
-            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 mr-1" /> : <Maximize2 className="h-3.5 w-3.5 mr-1" />}
-            {isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
-          </Button>
         </div>
       </div>
 

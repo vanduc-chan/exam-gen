@@ -152,7 +152,7 @@ const ExamGeneratePage = () => {
   if (loading) return <div className="p-4 sm:p-8">Đang tải...</div>;
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-6">
       <div>
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Tạo Đợt Sinh Đề Mới</h2>
         <p className="text-sm text-muted-foreground mt-1">Cấu hình thông tin kỳ thi và số lượng từng loại câu hỏi để hệ thống tự động sinh đề.</p>
