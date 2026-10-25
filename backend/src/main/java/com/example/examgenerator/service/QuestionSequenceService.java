@@ -13,7 +13,7 @@ public class QuestionSequenceService {
     private final QuestionSequenceRepository sequenceRepository;
     @Transactional
     public synchronized Long getNextSequenceValue(String sequenceName) {
-        QuestionSequence sequence = sequenceRepository.findBySequenceNameWithLock(sequenceName)
+        QuestionSequence sequence = sequenceRepository.findBySequenceName(sequenceName)
                 .orElseGet(() -> {
                     QuestionSequence newSeq = QuestionSequence.builder()
                             .sequenceName(sequenceName)
