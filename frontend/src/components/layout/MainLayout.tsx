@@ -37,9 +37,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         toggleMobile,
       }}
     >
-      <div className="flex h-screen w-full overflow-hidden bg-background">
+      <div className="flex h-full w-full overflow-hidden bg-background">
         <AppSidebar />
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
           <SiteHeader />
           <main className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-900 min-w-0">
             {children}

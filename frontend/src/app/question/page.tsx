@@ -1,26 +1,18 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { Question } from '@/types/question';
+import { Question, QuestionType } from '@/types/question';
 import { Subject } from '@/types/subject';
+import { Course } from '@/types/course';
 import { questionService } from '@/services/questionService';
 import { subjectService } from '@/services/subjectService';
 import { courseService } from '@/services/courseService';
-import { Course } from '@/types/course';
-import api from '@/lib/api';
 import QuestionTable from '@/components/question/QuestionTable';
 import QuestionFilter from '@/components/question/QuestionFilter';
 import QuestionImportModal from '@/components/question/QuestionImportModal';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { AppPagination } from '@/components/ui/app-pagination';
 
 const QuestionListPage = () => {
   const navigate = useNavigate();
@@ -30,28 +22,56 @@ const QuestionListPage = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
   const [searchParams, setSearchParams] = useSearchParams();
-  const [filters, setFilters] = useState<any>({});
-  
+
   // 1-based page in URL (?page=1, ?page=2), 0-based for backend API
   const pageParam = searchParams.get('page');
   const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
   const page = currentPage - 1;
-  
-  const setPage = useCallback((newPageOrFn: number | ((p: number) => number)) => {
-    const targetZeroBased = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
-    const targetOneBased = Math.max(1, targetZeroBased + 1);
+
+  // Read all filter params from URL
+  const searchParam = searchParams.get('search') || '';
+  const subjectIdParam = searchParams.get('subjectId') || undefined;
+  const typeParam = (searchParams.get('type') as QuestionType) || undefined;
+  const courseIdsParam = searchParams.get('courseIds') || undefined;
+
+  const filters = useMemo(() => {
+    const f: any = {};
+    if (searchParam) f.search = searchParam;
+    if (subjectIdParam) f.subjectId = subjectIdParam;
+    if (typeParam) f.type = typeParam;
+    if (courseIdsParam) f.courseIds = courseIdsParam;
+    return f;
+  }, [searchParam, subjectIdParam, typeParam, courseIdsParam]);
+
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState<number | undefined>(undefined);
+  const size = 10;
+
+  const updateUrlParams = useCallback((newFilters: any, newPage: number = 0) => {
     setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.set('page', targetOneBased.toString());
+      const next = new URLSearchParams();
+      // Page (1-based)
+      next.set('page', (newPage + 1).toString());
+      // Filter values
+      if (newFilters.search) next.set('search', newFilters.search);
+      if (newFilters.subjectId) next.set('subjectId', newFilters.subjectId);
+      if (newFilters.type) next.set('type', newFilters.type);
+      if (newFilters.courseIds) next.set('courseIds', newFilters.courseIds);
       return next;
     });
-  }, [page, setSearchParams]);
-  const [totalPages, setTotalPages] = useState(0);
-  const size = 10;
+  }, [setSearchParams]);
+
+  const setPage = useCallback((newPageOrFn: number | ((p: number) => number)) => {
+    const targetZeroBased = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
+    updateUrlParams(filters, targetZeroBased);
+  }, [page, filters, updateUrlParams]);
+
+  const handleFilterChange = (newFilters: any) => {
+    updateUrlParams(newFilters, 0); // Reset to first page on filter change
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -63,6 +83,7 @@ const QuestionListPage = () => {
       });
       setQuestions(res.data.content);
       setTotalPages(res.data.totalPages);
+      setTotalElements(res.data.totalElements);
     } catch (error: any) {
       toast.error(error.message || 'Lỗi khi tải danh sách câu hỏi');
     } finally {
@@ -96,11 +117,6 @@ const QuestionListPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const handleFilterChange = (newFilters: any) => {
-    setFilters(newFilters);
-    setPage(0);
-  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -148,7 +164,12 @@ const QuestionListPage = () => {
   return (
     <div className="p-3 sm:p-5 md:p-8 space-y-4 max-w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ngân hàng Câu hỏi</h2>
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ngân hàng Câu hỏi</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Quản lý, phân loại và tìm kiếm câu hỏi theo môn học và đối tượng thi
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
             <Button variant="destructive" onClick={handleDeleteSelected}>
@@ -172,7 +193,7 @@ const QuestionListPage = () => {
       />
 
       {loading ? (
-        <div className="text-center py-10">Đang tải dữ liệu...</div>
+        <div className="text-center py-10 bg-white rounded-md border">Đang tải dữ liệu...</div>
       ) : (
         <>
           <QuestionTable 
@@ -184,42 +205,13 @@ const QuestionListPage = () => {
             onDelete={handleDelete}
           />
 
-          {totalPages > 1 && (
-            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-sm text-muted-foreground order-2 sm:order-1">
-                Trang {currentPage} / {totalPages}
-              </div>
-              <Pagination className="order-1 sm:order-2 justify-end w-auto mx-0">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      className={page === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <PaginationItem key={i}>
-                      <PaginationLink 
-                        isActive={page === i}
-                        onClick={() => setPage(i)}
-                        className="cursor-pointer"
-                      >
-                        {i + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-
-                  <PaginationItem>
-                    <PaginationNext 
-                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                      className={page === totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
+          <AppPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalItems={totalElements}
+            size={size}
+          />
         </>
       )}
 

@@ -30,13 +30,33 @@ public class ExamMapper {
 
         Course primaryCourse = (courses != null && !courses.isEmpty()) ? courses.iterator().next() : null;
 
+        java.time.LocalDateTime parsedExamDate = null;
+        if (request.getExamDate() != null && !request.getExamDate().trim().isEmpty()) {
+            try {
+                String s = request.getExamDate().trim();
+                if (s.length() == 10) {
+                    parsedExamDate = java.time.LocalDate.parse(s).atStartOfDay();
+                } else {
+                    parsedExamDate = java.time.LocalDateTime.parse(s);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        String academicYear = request.getAcademicYear();
+        if (academicYear == null || academicYear.trim().isEmpty()) {
+            int y = parsedExamDate != null ? parsedExamDate.getYear() : java.time.LocalDate.now().getYear();
+            academicYear = y + "-" + (y + 1);
+        }
+
         return Exam.builder()
                 .title(request.getTitle())
                 .subject(subject)
                 .course(primaryCourse)
                 .courses(courses != null ? courses : Collections.emptySet())
                 .semester(request.getSemester())
-                .academicYear(request.getAcademicYear())
+                .academicYear(academicYear)
+                .unit(request.getUnit())
+                .examDate(parsedExamDate)
                 .durationMinutes(request.getDurationMinutes())
                 .examStructure(request.getExamStructure())
                 .numberOfTheories(request.getNumberOfTheories())
@@ -88,6 +108,8 @@ public class ExamMapper {
                 .courseCodes(courseCodes)
                 .semester(entity.getSemester())
                 .academicYear(entity.getAcademicYear())
+                .unit(entity.getUnit())
+                .examDate(entity.getExamDate() != null ? entity.getExamDate().toLocalDate().toString() : null)
                 .durationMinutes(entity.getDurationMinutes())
                 .examStructure(entity.getExamStructure())
                 .numberOfTheories(entity.getNumberOfTheories())

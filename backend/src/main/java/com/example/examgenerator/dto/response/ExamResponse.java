@@ -23,6 +23,8 @@ public class ExamResponse {
     private java.util.List<String> courseCodes;
     private String semester;
     private String academicYear;
+    private String unit;
+    private String examDate;
     private Integer durationMinutes;
     private ExamStructureType examStructure;
     private Integer numberOfTheories;

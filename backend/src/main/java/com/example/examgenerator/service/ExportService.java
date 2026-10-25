@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -285,14 +286,14 @@ public class ExportService {
         rBatch.setBold(true);
         rBatch.setText("BỘ ĐỀ: " + String.format("%02d", Math.max(1, details.size())));
 
-        // Vertical spacing before Exam Title
+        // Vertical spacing before Exam Title - lowered down into the page
         XWPFParagraph pSpace1 = document.createParagraph();
-        pSpace1.setSpacingBefore(800); // ~40pt
+        pSpace1.setSpacingBefore(2800); // ~140pt pushes Exam Title & Metadata down gracefully into page
 
         // Exam Title
         XWPFParagraph pTitle = document.createParagraph();
         pTitle.setAlignment(ParagraphAlignment.CENTER);
-        pTitle.setSpacingAfter(250);
+        pTitle.setSpacingAfter(350);
         XWPFRun rTitle = pTitle.createRun();
         rTitle.setFontFamily("Times New Roman");
         rTitle.setFontSize(20);
@@ -302,13 +303,14 @@ public class ExportService {
         // Metadata block (Indented)
         addCoverMetadataLine(document, "Môn: " + subjectName);
         addCoverMetadataLine(document, "Đối tượng: " + courseName);
-        addCoverMetadataLine(document, "Đơn vị: Đại đội 10 - Tiểu đoàn 4");
-        addCoverMetadataLine(document, "Năm học: " + academicYear);
+        String unitStr = (exam.getUnit() != null && !exam.getUnit().trim().isEmpty()) ? exam.getUnit().trim() : "Đại đội 10 - Tiểu đoàn 4";
+        addCoverMetadataLine(document, "Đơn vị: " + unitStr);
+        addCoverMetadataLine(document, "Năm học: " + currentYear);
 
         // Footer of Cover Page: "Hải Phòng, tháng       năm ...", chữ thường, KHÔNG in đậm, ở dưới cùng của trang bìa
         XWPFParagraph pCoverFooter = document.createParagraph();
         pCoverFooter.setAlignment(ParagraphAlignment.CENTER);
-        pCoverFooter.setSpacingBefore(7300); // ~365pt pushes directly to the bottom of the cover page
+        pCoverFooter.setSpacingBefore(5000); // perfectly positions footer at bottom of cover page
         pCoverFooter.setSpacingAfter(0);
         XWPFRun rCoverFooter = pCoverFooter.createRun();
         rCoverFooter.setFontFamily("Times New Roman");
@@ -621,9 +623,17 @@ public class ExportService {
                 rTargetVal.setColor("FF0000");
                 rTargetVal.setText(courseName + ";");
 
-                addRedItalicLine(sigLeft, "- Đơn vị: c10/d4;");
+                String unitAbbr = formatMilitaryUnitAbbreviation(exam.getUnit());
+                addRedItalicLine(sigLeft, "- Đơn vị: " + unitAbbr + ";");
                 addRedItalicLine(sigLeft, "- Số lượng: " + String.format("%02d bộ;", Math.max(1, details.size())));
-                addRedItalicLine(sigLeft, "- Ngày thi:      /" + String.format("%02d", currentMonth) + "/" + currentYear);
+
+                String examDateSig;
+                if (exam.getExamDate() != null) {
+                    examDateSig = "- Ngày thi: " + exam.getExamDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                } else {
+                    examDateSig = "- Ngày thi:      /" + String.format("%02d", currentMonth) + "/" + currentYear;
+                }
+                addRedItalicLine(sigLeft, examDateSig);
 
                 // Right cell: Signatures
                 XWPFTableCell sigRight = sigTable.getRow(0).getCell(1);
@@ -823,7 +833,7 @@ public class ExportService {
     private void addCoverMetadataLine(XWPFDocument document, String text) {
         XWPFParagraph p = document.createParagraph();
         p.setIndentationLeft(1700); // ~30mm
-        p.setSpacingAfter(80);
+        p.setSpacingAfter(120);
         XWPFRun r = p.createRun();
         r.setFontFamily("Times New Roman");
         r.setFontSize(13);
@@ -856,5 +866,44 @@ public class ExportService {
         if (tcMar.isSetBottom()) tcMar.getBottom().setW(BigInteger.ZERO); else tcMar.addNewBottom().setW(BigInteger.ZERO);
         if (tcMar.isSetLeft()) tcMar.getLeft().setW(BigInteger.ZERO); else tcMar.addNewLeft().setW(BigInteger.ZERO);
         if (tcMar.isSetRight()) tcMar.getRight().setW(BigInteger.ZERO); else tcMar.addNewRight().setW(BigInteger.ZERO);
+    }
+
+    /**
+     * Converts a military unit string (e.g. "Đại đội 10 - Tiểu đoàn 4") into its standard military abbreviation
+     * (e.g. "c10/d4"). Rules:
+     * - Đại đội (đđ/c) -> c + number
+     * - Tiểu đoàn (tđ/d) -> d + number
+     * - Trung đội (b) -> b + number
+     * - Output order: c / d
+     */
+    public static String formatMilitaryUnitAbbreviation(String unit) {
+        if (unit == null || unit.trim().isEmpty()) {
+            return "";
+        }
+        String s = unit.trim();
+        if (s.matches("(?i)^[a-z]\\d+(/[a-z]\\d+)*$")) {
+            return s.toLowerCase();
+        }
+
+        // Chuyển s về chữ thường để khớp hoàn toàn với các từ khóa tiếng Việt không dấu/có dấu ở dạng thường
+        String sLower = s.toLowerCase();
+
+        java.util.regex.Matcher mC = java.util.regex.Pattern.compile("(?:đại đội|đđ|c)\\s*(\\d+)").matcher(sLower);
+        java.util.regex.Matcher mD = java.util.regex.Pattern.compile("(?:tiểu đoàn|tđ|d)\\s*(\\d+)").matcher(sLower);
+        java.util.regex.Matcher mB = java.util.regex.Pattern.compile("(?:trung đội|b)\\s*(\\d+)").matcher(sLower);
+
+        String bPart = mB.find() ? "b" + mB.group(1) : null;
+        String cPart = mC.find() ? "c" + mC.group(1) : null;
+        String dPart = mD.find() ? "d" + mD.group(1) : null;
+
+        List<String> parts = new ArrayList<>();
+        if (bPart != null) parts.add(bPart);
+        if (cPart != null) parts.add(cPart);
+        if (dPart != null) parts.add(dPart);
+
+        if (!parts.isEmpty()) {
+            return String.join("/", parts);
+        }
+        return s;
     }
 }

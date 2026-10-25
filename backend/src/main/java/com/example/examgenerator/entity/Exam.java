@@ -92,6 +92,9 @@ public class Exam extends BaseEntity {
     )
     private Set<Course> courses = new HashSet<>();
 
+    @Column(name = "unit")
+    private String unit;
+
     @Column(name = "exam_date")
     private LocalDateTime examDate;
 

@@ -40,7 +40,9 @@ const formSchema = z.object({
   subjectId: z.string().min(1, 'Vui lòng chọn môn học'),
   courseIds: z.array(z.string()).min(1, 'Vui lòng chọn ít nhất một đối tượng thi'),
   semester: z.string().optional().default('1'),
-  academicYear: z.string().min(1, 'Vui lòng chọn năm học'),
+  unit: z.string().optional().default(''),
+  examDate: z.string().min(1, 'Vui lòng chọn thời gian thi'),
+  academicYear: z.string().optional().default(''),
   durationMinutes: z.coerce.number().optional().default(90),
   examStructure: z.nativeEnum(ExamStructureType),
   numberOfExams: z.coerce.number().min(1, 'Số lượng đề tối thiểu là 1').max(20, 'Tối đa 20 đề mỗi đợt'),
@@ -75,7 +77,9 @@ const ExamEditPage = () => {
       subjectId: '',
       courseIds: [],
       semester: '1',
-      academicYear: '2023-2024',
+      unit: '',
+      examDate: new Date().toISOString().split('T')[0],
+      academicYear: '',
       durationMinutes: 90,
       examStructure: ExamStructureType.CUSTOM,
       numberOfExams: 1,
@@ -130,12 +134,21 @@ const ExamEditPage = () => {
           ? exam.courseIds
           : (exam.courseId ? [exam.courseId] : []);
 
+        let dateValue = '';
+        if (exam.examDate) {
+          dateValue = exam.examDate.includes('T') ? exam.examDate.split('T')[0] : exam.examDate;
+        } else {
+          dateValue = new Date().toISOString().split('T')[0];
+        }
+
         reset({
           title: exam.title || '',
           subjectId: exam.subjectId || '',
           courseIds: currentCourseIds,
           semester: exam.semester || '1',
-          academicYear: exam.academicYear || '2023-2024',
+          unit: exam.unit || '',
+          examDate: dateValue,
+          academicYear: exam.academicYear || '',
           durationMinutes: exam.durationMinutes || 90,
           examStructure: structure,
           numberOfExams: exam.numberOfExams || 1,
@@ -290,12 +303,29 @@ const ExamEditPage = () => {
 
               <FormField
                 control={form.control}
-                name="academicYear"
+                name="unit"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Năm học <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>Đơn vị</FormLabel>
                     <FormControl>
-                      <Input placeholder="VD: 2024-2025" {...field} />
+                      <Input placeholder="VD: Đại đội 10 - Tiểu đoàn 4" {...field} />
+                    </FormControl>
+                    <FormDescription className="text-xs text-muted-foreground">
+                      Ký hiệu xuất đề sẽ tự động chuyển thành định dạng quân sự (VD: c10/d4)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="examDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Thời gian thi <span className="text-destructive">*</span></FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

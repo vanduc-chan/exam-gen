@@ -115,3 +115,5 @@ export {
   PaginationNext,
   PaginationPrevious,
 }
+
+export { AppPagination } from './app-pagination';

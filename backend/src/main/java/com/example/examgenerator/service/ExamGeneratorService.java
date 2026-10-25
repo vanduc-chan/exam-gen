@@ -30,6 +30,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -195,7 +197,57 @@ public class ExamGeneratorService {
 
         exam.setTitle(request.getTitle());
         exam.setSemester(request.getSemester());
-        exam.setAcademicYear(request.getAcademicYear());
+        
+        java.time.LocalDateTime parsedExamDate = null;
+        if (request.getExamDate() != null && !request.getExamDate().trim().isEmpty()) {
+            try {
+                String s = request.getExamDate().trim();
+                if (s.length() == 10) {
+                    parsedExamDate = java.time.LocalDate.parse(s).atStartOfDay();
+                } else {
+                    parsedExamDate = java.time.LocalDateTime.parse(s);
+                }
+            } catch (Exception ignored) {}
+        }
+        exam.setExamDate(parsedExamDate);
+
+        String academicYear = request.getAcademicYear();
+        if (academicYear == null || academicYear.trim().isEmpty()) {
+            int y = parsedExamDate != null ? parsedExamDate.getYear() : java.time.LocalDate.now().getYear();
+            academicYear = y + "-" + (y + 1);
+        }
+        exam.setAcademicYear(academicYear);
+
+        String unitNormalization = request.getUnit();
+        if (unitNormalization == null || unitNormalization.trim().isEmpty()) {
+            // Xử lý khi giá trị rỗng/null tùy theo logic của bạn (ví dụ: gán null, ném exception, v.v.)
+            unitNormalization = null;
+        } else {
+            // Regex bắt linh hoạt:
+            // - "đại đội" (không phân biệt hoa thường) + khoảng trắng + số/tên đại đội
+            // - Dấu phân tách ở giữa: có thể là dấu phẩy (,), gạch ngang (-), gạch dưới (_),...
+            // - "tiểu đoàn" (không phân biệt hoa thường) + khoảng trắng + số/tên tiểu đoàn
+            Pattern pattern = Pattern.compile(
+                    "(?i)đại\\s+đội\\s+([\\w\\d\\p{L}]+)\\s*[,\\-_/\\s]+\\s*tiểu\\s+đoàn\\s+([\\w\\d\\p{L}]+)",
+                    Pattern.UNICODE_CHARACTER_CLASS
+            );
+
+            Matcher matcher = pattern.matcher(unitNormalization.trim());
+            if (matcher.find()) {
+                String daiDoi = matcher.group(1).trim();
+                String tieuDoan = matcher.group(2).trim();
+                unitNormalization = String.format("Đại đội %s - Tiểu đoàn %s", daiDoi, tieuDoan);
+            } else {
+                // Trường hợp người dùng nhập không đúng cấu trúc (hoặc chỉ nhập 1 phần)
+                // Cách an toàn: chuẩn hóa khoảng trắng thừa và dấu ngăn cách cơ bản
+                unitNormalization = unitNormalization.trim()
+                        .replaceAll("(?i)đại\\s+đội", "Đại đội")
+                        .replaceAll("(?i)tiểu\\s+đoàn", "Tiểu đoàn")
+                        .replaceAll("\\s*[,\\-]+\\s*", " - ")
+                        .replaceAll("\\s{2,}", " ");
+            }
+        }
+        exam.setUnit(unitNormalization);
         exam.setDurationMinutes(request.getDurationMinutes());
         exam.setExamStructure(structure);
         exam.setNumberOfTheories(numT);

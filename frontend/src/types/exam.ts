@@ -22,8 +22,10 @@ export interface Exam {
   courseIds?: string[];
   courseNames?: string[];
   courseCodes?: string[];
-  semester: string;
-  academicYear: string;
+  semester?: string;
+  academicYear?: string;
+  unit?: string;
+  examDate?: string;
   durationMinutes: number;
   examStructure?: ExamStructureType;
   numberOfTheories?: number;
@@ -41,9 +43,11 @@ export interface ExamRequest {
   subjectId: string;
   courseId?: string;
   courseIds?: string[];
-  semester: string;
-  academicYear: string;
-  durationMinutes: number;
+  semester?: string;
+  academicYear?: string;
+  unit?: string;
+  examDate?: string;
+  durationMinutes?: number;
   examStructure?: ExamStructureType;
   numberOfExams: number;
   numberOfTheories?: number;

@@ -57,7 +57,7 @@ public class HtmlToWordRenderer {
             String rawLine = lines[lineIdx];
             if (rawLine.trim().isEmpty()) continue;
 
-            String lineStr = rawLine.trim();
+            String lineStr = normalizeDegreeNotations(rawLine.trim());
             XWPFParagraph linePara = document.createParagraph();
             linePara.setAlignment(ParagraphAlignment.BOTH);
             linePara.setSpacingAfter(40);
@@ -144,7 +144,7 @@ public class HtmlToWordRenderer {
         }
 
         boolean isHeading = element.tagName().startsWith("h");
-        renderInlineNodes(p, element.childNodes(), defaultFont, isHeading ? defaultFontSize + 1 : defaultFontSize, isHeading, false, false);
+        renderInlineNodes(p, element.childNodes(), defaultFont, isHeading ? defaultFontSize + 1 : defaultFontSize, isHeading, false, false, false, false);
     }
 
     /**
@@ -169,7 +169,7 @@ public class HtmlToWordRenderer {
             bulletRun.setFontSize(defaultFontSize);
             bulletRun.setText(isOrdered ? (itemIndex + ". ") : "• ");
 
-            renderInlineNodes(p, li.childNodes(), defaultFont, defaultFontSize, false, false, false);
+            renderInlineNodes(p, li.childNodes(), defaultFont, defaultFontSize, false, false, false, false, false);
             itemIndex++;
         }
     }
@@ -301,7 +301,7 @@ public class HtmlToWordRenderer {
                     cellPara.setAlignment(ParagraphAlignment.BOTH);
                 }
 
-                renderInlineNodes(cellPara, cellElem.childNodes(), defaultFont, defaultFontSize - 1, isHeader, false, false);
+                renderInlineNodes(cellPara, cellElem.childNodes(), defaultFont, defaultFontSize - 1, isHeader, false, false, false, false);
 
                 colIdx += colspan;
             }
@@ -314,12 +314,27 @@ public class HtmlToWordRenderer {
     }
 
     /**
+     * Normalizes non-tech user notations for degree (e.g. 37oC -> 37°C, 90o -> 90°, 90^o -> 90°).
+     */
+    public static String normalizeDegreeNotations(String text) {
+        if (text == null || text.isEmpty()) return text;
+        // 1. Temperature: e.g. "37oC" or "100 oC" -> "37°C"
+        String res = text.replaceAll("(?<=\\d)\\s*[oO]C\\b", "°C");
+        // 2. Exponential degree: e.g. "90^o", "90^0" -> "90°"
+        res = res.replaceAll("(?<=\\d)\\s*\\^[oO0]", "°");
+        // 3. Angles / coordinates: e.g. 0o, 45o, 90o, 180o, 360o
+        res = res.replaceAll("(?<=\\b(?:[0-9]|[1-9][0-9]|1[0-7][0-9]|180|360))[oO](?=[\\s,;\\.\\?\\)]|$)", "°");
+        return res;
+    }
+
+    /**
      * Recursively renders inline HTML nodes into runs of an XWPFParagraph.
      */
-    private static void renderInlineNodes(XWPFParagraph p, List<Node> nodes, String font, int fontSize, boolean bold, boolean italic, boolean underline) {
+    private static void renderInlineNodes(XWPFParagraph p, List<Node> nodes, String font, int fontSize, boolean bold, boolean italic, boolean underline, boolean superscript, boolean subscript) {
         for (Node node : nodes) {
             if (node instanceof TextNode) {
                 String text = ((TextNode) node).text().replace("\u00AD", "").replace("\u200B", "").replace("\uFEFF", "");
+                text = normalizeDegreeNotations(text);
                 if (!text.isEmpty()) {
                     XWPFRun run = p.createRun();
                     run.setFontFamily(font);
@@ -328,6 +343,11 @@ public class HtmlToWordRenderer {
                     if (bold) run.setBold(true);
                     if (italic) run.setItalic(true);
                     if (underline) run.setUnderline(UnderlinePatterns.SINGLE);
+                    if (superscript) {
+                        run.setSubscript(VerticalAlign.SUPERSCRIPT);
+                    } else if (subscript) {
+                        run.setSubscript(VerticalAlign.SUBSCRIPT);
+                    }
                 }
             } else if (node instanceof Element) {
                 Element el = (Element) node;
@@ -342,8 +362,10 @@ public class HtmlToWordRenderer {
                 boolean nextBold = bold || tag.equals("strong") || tag.equals("b");
                 boolean nextItalic = italic || tag.equals("em") || tag.equals("i");
                 boolean nextUnderline = underline || tag.equals("u");
+                boolean nextSup = superscript || tag.equals("sup");
+                boolean nextSub = subscript || tag.equals("sub");
 
-                renderInlineNodes(p, el.childNodes(), font, fontSize, nextBold, nextItalic, nextUnderline);
+                renderInlineNodes(p, el.childNodes(), font, fontSize, nextBold, nextItalic, nextUnderline, nextSup, nextSub);
             }
         }
     }
@@ -434,7 +456,7 @@ public class HtmlToWordRenderer {
             r.setBold(true);
             r.setFontFamily(defaultFont);
             r.setFontSize(defaultFontSize);
-            r.setText(prefix + content);
+            r.setText(prefix + normalizeDegreeNotations(content));
             return;
         }
 
@@ -455,7 +477,7 @@ public class HtmlToWordRenderer {
                 rPrefix.setFontSize(defaultFontSize);
                 rPrefix.setText(prefix);
             }
-            renderInlineNodes(p, child.childNodes(), defaultFont, defaultFontSize, false, false, false);
+            renderInlineNodes(p, child.childNodes(), defaultFont, defaultFontSize, false, false, false, false, false);
             isFirst = false;
         }
     }

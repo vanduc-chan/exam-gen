@@ -13,6 +13,7 @@ import { Course } from '@/types/course';
 import { QuestionType } from '@/types/question';
 import { useDebounce } from '@/hooks/useDebounce';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface QuestionFilterProps {
   subjects: Subject[];
@@ -36,7 +37,7 @@ const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, courses, onFi
 
   useEffect(() => {
     if (debouncedSearch !== (filters.search || '')) {
-      onFilterChange({ ...filters, search: debouncedSearch });
+      onFilterChange({ ...filters, search: debouncedSearch || undefined });
     }
   }, [debouncedSearch]);
 
@@ -45,41 +46,50 @@ const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, courses, onFi
     onFilterChange({});
   };
 
+  const subjectOptions = [
+    { value: '', label: 'Tất cả môn học' },
+    ...subjects.map(sub => ({
+      value: sub.id,
+      label: `${sub.subjectName} (${sub.subjectCode})`,
+      subLabel: sub.subjectCode
+    }))
+  ];
+
   return (
-    <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-md border">
-      <div className="flex-1">
+    <div className="flex flex-col md:flex-row flex-wrap gap-3 mb-6 bg-white p-4 rounded-md border shadow-xs items-center">
+      {/* Search Input */}
+      <div className="flex-1 min-w-[240px] w-full md:w-auto">
         <Input 
           placeholder="Tìm kiếm mã hoặc nội dung..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          className="h-10"
         />
       </div>
-      <div className="w-48">
-        <Select 
-          value={filters.subjectId || 'all'} 
-          onValueChange={(val) => onFilterChange({ ...filters, subjectId: val === 'all' ? undefined : val })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Chọn môn học" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả môn học</SelectItem>
-            {subjects.map(sub => (
-              <SelectItem key={sub.id} value={sub.id}>{sub.subjectName}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+      {/* Searchable Subject Select */}
+      <div className="w-full md:w-64 min-w-[200px]">
+        <SearchableSelect
+          options={subjectOptions}
+          value={filters.subjectId || ''}
+          onChange={(val) => onFilterChange({ ...filters, subjectId: val || undefined })}
+          placeholder="Tất cả môn học"
+          searchPlaceholder="Tìm kiếm môn học..."
+          className="h-10"
+        />
       </div>
-      <div className="w-40">
+
+      {/* Question Type Select */}
+      <div className="w-full md:w-44">
         <Select 
           value={filters.type || 'all'} 
           onValueChange={(val) => onFilterChange({ ...filters, type: val === 'all' ? undefined : val })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="h-10">
             <SelectValue placeholder="Loại câu hỏi" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tất cả</SelectItem>
+            <SelectItem value="all">Tất cả loại câu hỏi</SelectItem>
             <SelectItem value={QuestionType.LY_THUYET}>Lý thuyết</SelectItem>
             <SelectItem value={QuestionType.THUC_HANH}>Thực hành</SelectItem>
             <SelectItem value={QuestionType.TU_LUAN}>Tự luận</SelectItem>
@@ -87,15 +97,20 @@ const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, courses, onFi
           </SelectContent>
         </Select>
       </div>
-      <div className="w-64">
+
+      {/* Target Courses MultiSelect */}
+      <div className="w-full md:w-64">
         <MultiSelect
-          options={courses.map(c => ({ value: c.id, label: c.name }))}
+          options={courses.map(c => ({ value: c.id, label: `${c.name} (${c.courseCode})` }))}
           value={filters.courseIds ? filters.courseIds.split(',') : []}
           onChange={(vals) => onFilterChange({ ...filters, courseIds: vals.length > 0 ? vals.join(',') : undefined })}
-          placeholder="Đối tượng"
+          placeholder="Đối tượng thi"
+          className="h-10"
         />
       </div>
-      <Button variant="outline" onClick={handleClear}>
+
+      {/* Clear Button */}
+      <Button variant="outline" onClick={handleClear} className="h-10 shrink-0">
         Xóa lọc
       </Button>
     </div>
@@ -103,4 +118,3 @@ const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, courses, onFi
 };
 
 export default QuestionFilter;
-

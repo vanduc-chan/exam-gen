@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Subject, SubjectRequest } from '@/types/subject';
 import { DepartmentGroup } from '@/types/departmentGroup';
@@ -6,17 +6,11 @@ import { subjectService } from '@/services/subjectService';
 import { departmentGroupService } from '@/services/departmentGroupService';
 import SubjectTable from '@/components/subject/SubjectTable';
 import SubjectForm from '@/components/subject/SubjectForm';
+import SubjectFilter from '@/components/subject/SubjectFilter';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { AppPagination } from '@/components/ui/app-pagination';
 
 const SubjectPage = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -27,11 +21,32 @@ const SubjectPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const searchParam = searchParams.get('search') || '';
+  const departmentGroupIdParam = searchParams.get('departmentGroupId') || '';
   const pageParam = searchParams.get('page');
   const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
   const page = currentPage - 1;
   const pageSize = 10;
-  const totalPages = Math.ceil(subjects.length / pageSize);
+
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter(s => {
+      // Filter by departmentGroupId
+      if (departmentGroupIdParam && s.departmentGroupId !== departmentGroupIdParam) {
+        return false;
+      }
+      // Filter by search
+      if (searchParam.trim()) {
+        const q = searchParam.toLowerCase().trim();
+        const matchesName = s.subjectName && s.subjectName.toLowerCase().includes(q);
+        const matchesCode = s.subjectCode && s.subjectCode.toLowerCase().includes(q);
+        const matchesGroup = s.departmentGroupName && s.departmentGroupName.toLowerCase().includes(q);
+        if (!matchesName && !matchesCode && !matchesGroup) return false;
+      }
+      return true;
+    });
+  }, [subjects, searchParam, departmentGroupIdParam]);
+
+  const totalPages = Math.ceil(filteredSubjects.length / pageSize);
 
   const setPage = (newPageOrFn: number | ((p: number) => number)) => {
     const targetZeroBased = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
@@ -43,7 +58,25 @@ const SubjectPage = () => {
     });
   };
 
-  const paginatedSubjects = subjects.slice(page * pageSize, (page + 1) * pageSize);
+  const handleFilterChange = (newFilters: { search?: string; departmentGroupId?: string }) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (newFilters.search) {
+        next.set('search', newFilters.search);
+      } else {
+        next.delete('search');
+      }
+      if (newFilters.departmentGroupId) {
+        next.set('departmentGroupId', newFilters.departmentGroupId);
+      } else {
+        next.delete('departmentGroupId');
+      }
+      next.set('page', '1');
+      return next;
+    });
+  };
+
+  const paginatedSubjects = filteredSubjects.slice(page * pageSize, (page + 1) * pageSize);
 
   const loadData = async () => {
     try {
@@ -109,14 +142,20 @@ const SubjectPage = () => {
   return (
     <div className="p-3 sm:p-5 md:p-8 space-y-4 max-w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Quản lý Môn Học</h2>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Quản lý Môn học</h2>
         <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" /> Thêm mới
         </Button>
       </div>
 
+      <SubjectFilter
+        departmentGroups={departmentGroups}
+        filters={{ search: searchParam, departmentGroupId: departmentGroupIdParam }}
+        onFilterChange={handleFilterChange}
+      />
+
       {loading ? (
-        <div className="text-center py-10">Đang tải dữ liệu...</div>
+        <div className="text-center py-10 bg-white rounded-md border">Đang tải dữ liệu...</div>
       ) : (
         <>
           <SubjectTable 
@@ -125,50 +164,21 @@ const SubjectPage = () => {
             onDelete={handleDelete} 
           />
 
-          {totalPages > 1 && (
-            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-sm text-muted-foreground order-2 sm:order-1">
-                Trang {currentPage} / {totalPages} (Tổng số {subjects.length} môn học)
-              </div>
-              <Pagination className="order-1 sm:order-2 justify-end w-auto mx-0">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      className={page === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <PaginationItem key={i}>
-                      <PaginationLink 
-                        isActive={page === i}
-                        onClick={() => setPage(i)}
-                        className="cursor-pointer"
-                      >
-                        {i + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-
-                  <PaginationItem>
-                    <PaginationNext 
-                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                      className={page === totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
+          <AppPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalItems={filteredSubjects.length}
+            size={pageSize}
+          />
         </>
       )}
 
       <SubjectForm
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
-        initialData={selectedSubject}
         departmentGroups={departmentGroups}
+        initialData={selectedSubject}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
       />

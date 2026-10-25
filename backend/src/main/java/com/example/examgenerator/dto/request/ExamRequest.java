@@ -22,8 +22,11 @@ public class ExamRequest {
 
     private String semester = "1";
 
-    @NotBlank(message = "Năm học không được để trống")
     private String academicYear;
+
+    private String unit;
+
+    private String examDate;
 
     private Integer durationMinutes = 90;
 

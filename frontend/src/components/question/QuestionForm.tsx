@@ -166,7 +166,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
             )}
           />
 
-          <FormField
+          {/* <FormField
             control={form.control}
             name="difficultyLevel"
             render={({ field }) => (
@@ -187,7 +187,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
                 <FormMessage />
               </FormItem>
             )}
-          />
+          /> */}
         </div>
 
         <FormField

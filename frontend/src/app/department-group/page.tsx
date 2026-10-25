@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DepartmentGroup, DepartmentGroupRequest } from '@/types/departmentGroup';
 import { Department } from '@/types/department';
@@ -6,17 +6,11 @@ import { departmentGroupService } from '@/services/departmentGroupService';
 import { departmentService } from '@/services/departmentService';
 import DepartmentGroupTable from '@/components/department-group/DepartmentGroupTable';
 import DepartmentGroupForm from '@/components/department-group/DepartmentGroupForm';
+import DepartmentGroupFilter from '@/components/department-group/DepartmentGroupFilter';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { AppPagination } from '@/components/ui/app-pagination';
 
 const DepartmentGroupPage = () => {
   const [groups, setGroups] = useState<DepartmentGroup[]>([]);
@@ -27,11 +21,32 @@ const DepartmentGroupPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const searchParam = searchParams.get('search') || '';
+  const departmentIdParam = searchParams.get('departmentId') || '';
   const pageParam = searchParams.get('page');
   const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
   const page = currentPage - 1;
   const pageSize = 10;
-  const totalPages = Math.ceil(groups.length / pageSize);
+
+  const filteredGroups = useMemo(() => {
+    return groups.filter(g => {
+      // Filter by departmentId
+      if (departmentIdParam && g.departmentId !== departmentIdParam) {
+        return false;
+      }
+      // Filter by search
+      if (searchParam.trim()) {
+        const q = searchParam.toLowerCase().trim();
+        const matchesName = g.name && g.name.toLowerCase().includes(q);
+        const matchesCode = g.code && g.code.toLowerCase().includes(q);
+        const matchesDept = g.departmentName && g.departmentName.toLowerCase().includes(q);
+        if (!matchesName && !matchesCode && !matchesDept) return false;
+      }
+      return true;
+    });
+  }, [groups, searchParam, departmentIdParam]);
+
+  const totalPages = Math.ceil(filteredGroups.length / pageSize);
 
   const setPage = (newPageOrFn: number | ((p: number) => number)) => {
     const targetZeroBased = typeof newPageOrFn === 'function' ? newPageOrFn(page) : newPageOrFn;
@@ -43,7 +58,25 @@ const DepartmentGroupPage = () => {
     });
   };
 
-  const paginatedGroups = groups.slice(page * pageSize, (page + 1) * pageSize);
+  const handleFilterChange = (newFilters: { search?: string; departmentId?: string }) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (newFilters.search) {
+        next.set('search', newFilters.search);
+      } else {
+        next.delete('search');
+      }
+      if (newFilters.departmentId) {
+        next.set('departmentId', newFilters.departmentId);
+      } else {
+        next.delete('departmentId');
+      }
+      next.set('page', '1');
+      return next;
+    });
+  };
+
+  const paginatedGroups = filteredGroups.slice(page * pageSize, (page + 1) * pageSize);
 
   const loadData = async () => {
     try {
@@ -109,14 +142,20 @@ const DepartmentGroupPage = () => {
   return (
     <div className="p-3 sm:p-5 md:p-8 space-y-4 max-w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Quản lý Tổ Bộ Môn</h2>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Quản lý Tổ bộ môn</h2>
         <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" /> Thêm mới
         </Button>
       </div>
 
+      <DepartmentGroupFilter
+        departments={departments}
+        filters={{ search: searchParam, departmentId: departmentIdParam }}
+        onFilterChange={handleFilterChange}
+      />
+
       {loading ? (
-        <div className="text-center py-10">Đang tải dữ liệu...</div>
+        <div className="text-center py-10 bg-white rounded-md border">Đang tải dữ liệu...</div>
       ) : (
         <>
           <DepartmentGroupTable 
@@ -125,50 +164,21 @@ const DepartmentGroupPage = () => {
             onDelete={handleDelete} 
           />
 
-          {totalPages > 1 && (
-            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-sm text-muted-foreground order-2 sm:order-1">
-                Trang {currentPage} / {totalPages} (Tổng số {groups.length} tổ bộ môn)
-              </div>
-              <Pagination className="order-1 sm:order-2 justify-end w-auto mx-0">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      className={page === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <PaginationItem key={i}>
-                      <PaginationLink 
-                        isActive={page === i}
-                        onClick={() => setPage(i)}
-                        className="cursor-pointer"
-                      >
-                        {i + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-
-                  <PaginationItem>
-                    <PaginationNext 
-                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                      className={page === totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
+          <AppPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalItems={filteredGroups.length}
+            size={pageSize}
+          />
         </>
       )}
 
       <DepartmentGroupForm
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
-        initialData={selectedGroup}
         departments={departments}
+        initialData={selectedGroup}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
       />

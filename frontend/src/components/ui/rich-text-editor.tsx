@@ -36,9 +36,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             'searchreplace', 'visualblocks', 'fullscreen', 'table', 'code', 'wordcount'
           ],
           toolbar:
-            'undo redo | bold italic underline | ' +
+            'undo redo | bold italic underline | subscript superscript | ' +
             'alignleft aligncenter alignright alignjustify | bullist numlist | ' +
-            'custom_arrow | ' +
+            'custom_arrow custom_degree | ' +
             'table tableprops tablerowprops tablecellprops | ' +
             'tableinsertrowbefore tableinsertrowafter tabledeleterow | ' +
             'tableinsertcolbefore tableinsertcolafter tabledeletecol | ' +
@@ -90,6 +90,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             // 4. Handle VML drawing shape arrows if Word copied them as shapes
             content = content.replace(/<v:shape[^>]*arrow[^>]*>[\s\S]*?<\/v:shape>/gi, ' → ');
             content = content.replace(/<v:line[^>]*>[\s\S]*?<\/v:line>/gi, ' → ');
+
+            // 5. Convert non-tech degree notation: e.g. 37oC -> 37°C, 90^o -> 90°
+            content = content.replace(/(\d+)\s*[oO]C\b/g, '$1°C');
+            content = content.replace(/(\d+)\s*\^[oO0]\b/g, '$1°');
 
             args.content = content;
           },
@@ -145,7 +149,53 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               }
             });
 
-            // Auto-replace typed shortcuts: "-> " to "→ ", "=> " to "⇒ ", "<=> " to "⇔ "
+            // Register custom Degree / Temperature / Coordinates insertion button
+            editor.ui.registry.addMenuButton('custom_degree', {
+              text: '° Độ',
+              tooltip: 'Chèn ký hiệu độ (°), nhiệt độ (℃), tọa độ (′ ″)',
+              fetch: (callback: any) => {
+                const items = [
+                  {
+                    type: 'menuitem',
+                    text: '°  Ký hiệu độ (ví dụ 30°, góc 90°)',
+                    onAction: () => editor.insertContent('°')
+                  },
+                  {
+                    type: 'menuitem',
+                    text: '℃  Độ C (nhiệt độ)',
+                    onAction: () => editor.insertContent('℃')
+                  },
+                  {
+                    type: 'menuitem',
+                    text: '℉  Độ F (nhiệt độ)',
+                    onAction: () => editor.insertContent('℉')
+                  },
+                  {
+                    type: 'menuitem',
+                    text: '′  Phút (tọa độ / góc: 30′)',
+                    onAction: () => editor.insertContent('′')
+                  },
+                  {
+                    type: 'menuitem',
+                    text: '″  Giây (tọa độ / góc: 45″)',
+                    onAction: () => editor.insertContent('″')
+                  },
+                  {
+                    type: 'menuitem',
+                    text: 'ᵒ  Chữ o chỉ số trên (superscript)',
+                    onAction: () => editor.insertContent('<sup>o</sup>')
+                  },
+                  {
+                    type: 'menuitem',
+                    text: '⁰  Chữ 0 chỉ số trên (superscript)',
+                    onAction: () => editor.insertContent('<sup>0</sup>')
+                  }
+                ];
+                callback(items);
+              }
+            });
+
+            // Auto-replace typed shortcuts: "-> " to "→ ", "=> " to "⇒ ", "90o " to "90° ", "37oC " to "37°C "
             editor.on('keydown', (e: any) => {
               if (e.key === ' ' || e.keyCode === 32) {
                 const rng = editor.selection.getRng();
@@ -174,6 +224,37 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                     rng.setStart(rng.startContainer, offset - 3);
                     rng.deleteContents();
                     editor.insertContent('⇔&nbsp;');
+                  } else {
+                    // Check for degree shortcuts: e.g. 100oC, 37oC, 90^o, 90^0, or 90o, 45o, 180o, 360o
+                    const degCMatch = textBefore.match(/(\d+)[oO]C$/);
+                    if (degCMatch) {
+                      e.preventDefault();
+                      const len = degCMatch[0].length;
+                      rng.setStart(rng.startContainer, offset - len);
+                      rng.deleteContents();
+                      editor.insertContent(`${degCMatch[1]}°C&nbsp;`);
+                      return;
+                    }
+
+                    const degExpMatch = textBefore.match(/(\d+)\^[oO0]$/);
+                    if (degExpMatch) {
+                      e.preventDefault();
+                      const len = degExpMatch[0].length;
+                      rng.setStart(rng.startContainer, offset - len);
+                      rng.deleteContents();
+                      editor.insertContent(`${degExpMatch[1]}°&nbsp;`);
+                      return;
+                    }
+
+                    const degAngleMatch = textBefore.match(/(\b(?:[0-9]|[1-9][0-9]|1[0-7][0-9]|180|360))[oO]$/);
+                    if (degAngleMatch) {
+                      e.preventDefault();
+                      const len = degAngleMatch[0].length;
+                      rng.setStart(rng.startContainer, offset - len);
+                      rng.deleteContents();
+                      editor.insertContent(`${degAngleMatch[1]}°&nbsp;`);
+                      return;
+                    }
                   }
                 }
               }

@@ -7,14 +7,7 @@ import CourseForm from '@/components/course/CourseForm';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { AppPagination } from '@/components/ui/app-pagination';
 
 const CoursePage = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -118,42 +111,12 @@ const CoursePage = () => {
             onDelete={handleDelete} 
           />
 
-          {totalPages > 1 && (
-            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-sm text-muted-foreground order-2 sm:order-1">
-                Trang {currentPage} / {totalPages} (Tổng số {courses.length} đối tượng thi)
-              </div>
-              <Pagination className="order-1 sm:order-2 justify-end w-auto mx-0">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      className={page === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <PaginationItem key={i}>
-                      <PaginationLink 
-                        isActive={page === i}
-                        onClick={() => setPage(i)}
-                        className="cursor-pointer"
-                      >
-                        {i + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-
-                  <PaginationItem>
-                    <PaginationNext 
-                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                      className={page === totalPages - 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
+          <AppPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalItems={courses.length}
+          />
         </>
       )}
 

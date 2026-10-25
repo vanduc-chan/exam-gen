@@ -56,7 +56,14 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
           {exams.map((exam) => (
             <TableRow key={exam.id}>
               <TableCell className="font-medium text-xs text-muted-foreground">{exam.code}</TableCell>
-              <TableCell className="font-medium">{exam.title}</TableCell>
+              <TableCell className="font-medium">
+                <div>{exam.title}</div>
+                {(exam.unit || exam.examDate) && (
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5 font-normal">
+                    {exam.unit && <span className="bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">{exam.unit}</span>}
+                  </div>
+                )}
+              </TableCell>
               <TableCell>{exam.subjectName}</TableCell>
               <TableCell>
                 {exam.courseNames && exam.courseNames.length > 0 ? (
