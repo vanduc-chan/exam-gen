@@ -105,6 +105,17 @@ public class ExamMapper {
             }
         } catch (Exception ignored) {}
 
+        int examsPerBatch = 0;
+        try {
+            if (entity.getExamDetails() != null && !entity.getExamDetails().isEmpty()) {
+                int firstBatch = entity.getExamDetails().get(0).getBatchNumber();
+                long count = entity.getExamDetails().stream()
+                        .filter(d -> d.getBatchNumber() == firstBatch)
+                        .count();
+                examsPerBatch = (int) count;
+            }
+        } catch (Exception ignored) {}
+
         return ExamResponse.builder()
                 .id(entity.getId())
                 .code(entity.getCode())
@@ -127,6 +138,7 @@ public class ExamMapper {
                 .numberOfEssays(entity.getNumberOfEssays())
                 .numberOfSituations(entity.getNumberOfSituations())
                 .numberOfExams(entity.getNumberOfExams())
+                .examsPerBatch(examsPerBatch)
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

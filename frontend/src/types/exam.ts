@@ -32,7 +32,8 @@ export interface Exam {
   numberOfPractices?: number;
   numberOfEssays?: number;
   numberOfSituations?: number;
-  numberOfExams: number;
+  numberOfExams: number; // Số lượng bộ đề
+  examsPerBatch?: number; // Số đề nhỏ trong mỗi bộ
   status: ExamStatus;
   createdAt: string;
   updatedAt: string;
@@ -49,11 +50,11 @@ export interface ExamRequest {
   examDate?: string;
   durationMinutes?: number;
   examStructure?: ExamStructureType;
-  numberOfExams: number;
+  numberOfExams: number; // Số lượng bộ đề
+  examsPerBatch?: number; // Số đề nhỏ trong mỗi bộ
   numberOfTheories?: number;
   numberOfPractices?: number;
   numberOfEssays?: number;
   numberOfSituations?: number;
   regenerateQuestions?: boolean;
 }
-

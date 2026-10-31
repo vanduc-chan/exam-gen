@@ -27,6 +27,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +40,61 @@ public class ExportService {
     private final ExamRepository examRepository;
     private final ExamDetailRepository examDetailRepository;
     private final ExamQuestionRepository examQuestionRepository;
+
+    @Transactional
+    public byte[] exportQuestionsZip(UUID examId) throws IOException {
+        return exportZip(examId, false);
+    }
+
+    @Transactional
+    public byte[] exportAnswersZip(UUID examId) throws IOException {
+        return exportZip(examId, true);
+    }
+
+    private byte[] exportZip(UUID examId, boolean includeAnswers) throws IOException {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Đợt sinh đề không tồn tại"));
+
+        List<ExamDetail> allDetails = examDetailRepository.findByExamId(examId);
+        if (allDetails == null || allDetails.isEmpty()) {
+            throw new IllegalArgumentException("Kỳ thi chưa có đề thi chi tiết để xuất file. Vui lòng sinh đề thi trước khi xuất!");
+        }
+
+        Map<Integer, List<ExamDetail>> batchMap = allDetails.stream()
+                .collect(Collectors.groupingBy(d -> d.getBatchNumber() > 0 ? d.getBatchNumber() : 1));
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+            List<Integer> sortedBatches = batchMap.keySet().stream().sorted().collect(Collectors.toList());
+            for (Integer batchNum : sortedBatches) {
+                List<ExamDetail> details = batchMap.get(batchNum);
+                details.sort(Comparator.comparingInt(ExamDetail::getOrderNumber));
+
+                try (XWPFDocument document = new XWPFDocument()) {
+                    if (includeAnswers) {
+                        exportAnswerFile(document, exam, details, batchNum);
+                    } else {
+                        exportExamFile(document, exam, details, batchNum);
+                    }
+
+                    ByteArrayOutputStream docxOut = new ByteArrayOutputStream();
+                    document.write(docxOut);
+
+                    String prefix = includeAnswers ? "Dap_An" : "De_Thi";
+                    String entryName = String.format("%s_Bo_De_%02d.docx", prefix, batchNum);
+                    ZipEntry entry = new ZipEntry(entryName);
+                    zos.putNextEntry(entry);
+                    zos.write(docxOut.toByteArray());
+                    zos.closeEntry();
+                }
+            }
+        }
+
+        exam.setStatus(ExamStatus.EXPORTED);
+        examRepository.save(exam);
+
+        return baos.toByteArray();
+    }
 
     @Transactional
     public byte[] exportExamToWord(UUID examId, boolean includeAnswers) throws IOException {
@@ -49,9 +108,11 @@ public class ExportService {
 
         try (XWPFDocument document = new XWPFDocument()) {
             if (includeAnswers) {
-                exportAnswerFile(document, exam, details);
+                int batchNum = (details.get(0).getBatchNumber() > 0) ? details.get(0).getBatchNumber() : 1;
+                exportAnswerFile(document, exam, details, batchNum);
             } else {
-                exportExamFile(document, exam, details);
+                int batchNum = (details.get(0).getBatchNumber() > 0) ? details.get(0).getBatchNumber() : 1;
+                exportExamFile(document, exam, details, batchNum);
             }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -71,7 +132,7 @@ public class ExportService {
      * - Section 2: Exam pages with 10mm margins on all sides.
      * - Exam distribution: max 4 exams per page, ensuring at least 1 exam is on the last page with signatures.
      */
-    private void createCoverPage(XWPFDocument document, Exam exam, List<ExamDetail> details, boolean isAnswer) {
+    private void createCoverPage(XWPFDocument document, Exam exam, List<ExamDetail> details, boolean isAnswer, int batchNumber) {
         int currentYear = LocalDate.now().getYear();
 
         String deptName = "KHOA BINH CHỦNG";
@@ -287,7 +348,7 @@ public class ExportService {
         rBatch.setFontFamily("Times New Roman");
         rBatch.setFontSize(14);
         rBatch.setBold(true);
-        rBatch.setText("BỘ ĐỀ: " + String.format("%02d", Math.max(1, details.size())));
+        rBatch.setText("BỘ ĐỀ: " + String.format("%02d", Math.max(1, batchNumber)));
 
         // Vertical spacing before Exam Title - lowered down into the page
         XWPFParagraph pSpace1 = document.createParagraph();
@@ -492,7 +553,7 @@ public class ExportService {
         pgBordersRubric.addNewRight().setVal(STBorder.NONE);
     }
 
-    private void exportExamFile(XWPFDocument document, Exam exam, List<ExamDetail> details) {
+    private void exportExamFile(XWPFDocument document, Exam exam, List<ExamDetail> details, int batchNumber) {
         int currentYear = LocalDate.now().getYear();
         int currentMonth = LocalDate.now().getMonthValue();
 
@@ -512,7 +573,7 @@ public class ExportService {
         }
 
         // 1. COVER PAGE (BÌA ĐỀ)
-        createCoverPage(document, exam, details, false);
+        createCoverPage(document, exam, details, false, batchNumber);
 
         // ==========================================
         // 2. EXAM PAGES (TRANG ĐỀ THI)
@@ -574,7 +635,8 @@ public class ExportService {
                 runHeader.setBold(true);
                 runHeader.setFontFamily("Times New Roman");
                 runHeader.setFontSize(13);
-                runHeader.setText("ĐỀ SỐ " + String.format("%02d", currentDetailIdx + 1));
+                int orderNum = (detail.getOrderNumber() > 0) ? detail.getOrderNumber() : (currentDetailIdx + 1);
+                runHeader.setText("ĐỀ SỐ " + String.format("%02d", orderNum));
 
                 for (int qIdx = 0; qIdx < questions.size(); qIdx++) {
                     ExamQuestion eq = questions.get(qIdx);
@@ -727,9 +789,9 @@ public class ExportService {
     /**
      * Export Answer File with answer guidelines for each question.
      */
-    private void exportAnswerFile(XWPFDocument document, Exam exam, List<ExamDetail> details) {
+    private void exportAnswerFile(XWPFDocument document, Exam exam, List<ExamDetail> details, int batchNumber) {
         // 1. Cover Page for Answer file
-        createCoverPage(document, exam, details, true);
+        createCoverPage(document, exam, details, true, batchNumber);
 
         // 2. Grading Rubric (THỐNG NHẤT BIỂU ĐIỂM)
         createGradingRubricPage(document, exam, details);
@@ -754,7 +816,8 @@ public class ExportService {
             runHeader.setBold(true);
             runHeader.setFontFamily("Times New Roman");
             runHeader.setFontSize(13);
-            runHeader.setText("ĐỀ SỐ " + String.format("%02d", dIndex + 1));
+            int orderNum = (detail.getOrderNumber() > 0) ? detail.getOrderNumber() : (dIndex + 1);
+            runHeader.setText("ĐỀ SỐ " + String.format("%02d", orderNum));
 
             for (int i = 0; i < questions.size(); i++) {
                 ExamQuestion eq = questions.get(i);

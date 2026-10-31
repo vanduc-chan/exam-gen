@@ -32,6 +32,7 @@ public class ExamResponse {
     private Integer numberOfEssays;
     private Integer numberOfSituations;
     private Integer numberOfExams;
+    private Integer examsPerBatch;
     private ExamStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

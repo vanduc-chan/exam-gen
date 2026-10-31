@@ -36,6 +36,10 @@ public class ExamDetail extends BaseEntity {
     @Column(name = "order_number")
     private int orderNumber;
 
+    @Column(name = "batch_number")
+    @Builder.Default
+    private int batchNumber = 1;
+
     @Builder.Default
     @OneToMany(mappedBy = "examDetail", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ExamQuestion> questions = new ArrayList<>();

@@ -32,9 +32,12 @@ public class ExamRequest {
 
     private ExamStructureType examStructure;
 
-    @NotNull(message = "Số lượng đề cần sinh không được để trống")
-    @Min(value = 1, message = "Số lượng đề phải lớn hơn 0")
-    private Integer numberOfExams;
+    @NotNull(message = "Số lượng bộ đề không được để trống")
+    @Min(value = 1, message = "Số lượng bộ đề phải lớn hơn 0")
+    private Integer numberOfExams = 1;
+
+    @Min(value = 1, message = "Số đề nhỏ trong mỗi bộ phải lớn hơn 0")
+    private Integer examsPerBatch = 20;
 
     private Integer numberOfTheories = 0;
     private Integer numberOfPractices = 0;

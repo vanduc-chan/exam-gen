@@ -43,4 +43,18 @@ export const examService = {
     });
     return response.data;
   },
+
+  exportQuestionsZip: async (id: string) => {
+    const response = await api.get(`/export/exams/${id}/zip-questions`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  exportAnswersZip: async (id: string) => {
+    const response = await api.get(`/export/exams/${id}/zip-answers`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };

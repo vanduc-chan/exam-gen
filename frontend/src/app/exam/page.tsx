@@ -127,18 +127,20 @@ const ExamPage = () => {
   };
 
   const handleExport = async (id: string, includeAnswers: boolean = false) => {
-    const toastId = toast.loading(includeAnswers ? 'Đang tạo file Word (kèm đáp án)...' : 'Đang tạo file Word...');
+    const toastId = toast.loading(includeAnswers ? 'Đang tạo tệp nén (ZIP) đáp án...' : 'Đang tạo tệp nén (ZIP) đề thi...');
     try {
-      const blob = await examService.exportToWord(id, includeAnswers);
+      const blob = includeAnswers 
+        ? await examService.exportAnswersZip(id) 
+        : await examService.exportQuestionsZip(id);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       const code = exams.find(e => e.id === id)?.code || id.substring(0, 8);
-      link.setAttribute('download', `${code}_${includeAnswers ? 'answer' : 'question'}.docx`);
+      link.setAttribute('download', `${code}_${includeAnswers ? 'answers' : 'questions'}.zip`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success(includeAnswers ? 'Tải xuống đề thi (kèm đáp án) thành công' : 'Tải xuống đề thi thành công', { id: toastId });
+      toast.success(includeAnswers ? 'Tải xuống tệp ZIP đáp án thành công' : 'Tải xuống tệp ZIP đề thi thành công', { id: toastId });
       loadData(); // Refresh to get EXPORTED status
     } catch (error: any) {
       toast.error(error.message || 'Lỗi khi xuất dữ liệu', { id: toastId });

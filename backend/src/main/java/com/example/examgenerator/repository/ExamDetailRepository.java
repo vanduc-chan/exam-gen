@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface ExamDetailRepository extends JpaRepository<ExamDetail, UUID> {
     List<ExamDetail> findByExamId(UUID examId);
+    List<ExamDetail> findByExamIdAndBatchNumber(UUID examId, int batchNumber);
 }

@@ -46,7 +46,7 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
             <TableHead>Tên đợt sinh đề</TableHead>
             <TableHead>Môn học</TableHead>
             <TableHead>Đối tượng</TableHead>
-            <TableHead className="text-center">Số đề</TableHead>
+            <TableHead className="text-center">Số bộ đề</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead>Ngày tạo</TableHead>
             <TableHead className="text-center">Hành động</TableHead>
@@ -82,7 +82,14 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
                   <span>{exam.courseName || '-'}</span>
                 )}
               </TableCell>
-              <TableCell className="text-center">{exam.numberOfExams}</TableCell>
+              <TableCell className="text-center font-medium">
+                {exam.numberOfExams} bộ
+                {exam.examsPerBatch ? (
+                  <span className="text-xs text-muted-foreground block font-normal">
+                    ({exam.examsPerBatch} đề/bộ)
+                  </span>
+                ) : null}
+              </TableCell>
               <TableCell>{getStatusBadge(exam.status)}</TableCell>
               <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                 {exam.createdAt ? format(new Date(exam.createdAt), 'dd/MM/yyyy HH:mm') : ''}
@@ -98,16 +105,16 @@ const ExamTable: React.FC<ExamTableProps> = ({ exams, onDelete, onView, onExport
                 </Button> */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" title="Xuất file Word">
+                    <Button variant="ghost" size="icon" title="Tải tệp nén (ZIP)">
                       <Download className="h-4 w-4 text-blue-500" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => onExport(exam.id, false)} className="cursor-pointer">
-                      <FileText className="mr-2 h-4 w-4 text-blue-500" /> Xuất Đề thi (không đáp án)
+                      <FileText className="mr-2 h-4 w-4 text-blue-500" /> Xuất Đề thi (ZIP)
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onExport(exam.id, true)} className="cursor-pointer">
-                      <FileCheck className="mr-2 h-4 w-4 text-green-600" /> Xuất Đề thi (kèm đáp án)
+                      <FileCheck className="mr-2 h-4 w-4 text-green-600" /> Xuất Đáp án (ZIP)
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

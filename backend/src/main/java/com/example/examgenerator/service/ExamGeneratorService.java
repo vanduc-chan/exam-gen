@@ -89,11 +89,59 @@ public class ExamGeneratorService {
                 .collect(Collectors.joining("-"));
     }
 
+    private List<Question> resolveAndValidateQuestions(Subject subject, Set<Course> courses, Set<UUID> courseIdSet) {
+        // 1. Load all active questions for the subject
+        List<Question> subjectQuestions = questionRepository.findAll().stream()
+                .filter(q -> {
+                    try {
+                        return q.getSubject() != null && q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive());
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .collect(Collectors.toList());
+
+        // 2. Check if any selected course has 0 questions in this subject
+        for (Course c : courses) {
+            boolean hasSpecific = subjectQuestions.stream()
+                    .anyMatch(q -> q.getCourses() != null && q.getCourses().stream().anyMatch(qc -> qc != null && qc.getId().equals(c.getId())));
+            boolean hasGeneral = subjectQuestions.stream()
+                    .anyMatch(q -> q.getCourses() == null || q.getCourses().isEmpty());
+
+            if (!hasSpecific && !hasGeneral) {
+                throw new IllegalArgumentException(String.format(
+                        "Đối tượng %s không có câu hỏi nào trong môn %s. Vui lòng loại bỏ đối tượng này trước khi sinh đề.",
+                        c.getName(), subject.getSubjectName()
+                ));
+            }
+        }
+
+        // 3. Filter only common questions for all selected courses:
+        // Either question is general (no course specified), OR question is assigned to ALL selected courses
+        List<Question> commonQuestions = subjectQuestions.stream()
+                .filter(q -> {
+                    if (q.getCourses() == null || q.getCourses().isEmpty()) {
+                        return true;
+                    }
+                    return courseIdSet.stream().allMatch(cId ->
+                            q.getCourses().stream().anyMatch(qc -> qc != null && qc.getId().equals(cId)));
+                })
+                .collect(Collectors.toList());
+
+        if (commonQuestions.isEmpty()) {
+            throw new InsufficientQuestionsException(String.format(
+                    "Không tìm thấy câu hỏi chung nào dành cho tất cả các đối tượng đã chọn trong môn %s.",
+                    subject.getSubjectName()
+            ));
+        }
+
+        return commonQuestions;
+    }
+
     @Transactional
     public ExamResponse generateExam(ExamRequest request) {
-        if (request.getNumberOfExams() == null || request.getNumberOfExams() < 1) {
-            throw new IllegalArgumentException("Số lượng đề cần sinh phải lớn hơn 0");
-        }
+        int numBatches = request.getNumberOfExams() != null && request.getNumberOfExams() >= 1 ? request.getNumberOfExams() : 1;
+        int examsPerBatch = request.getExamsPerBatch() != null && request.getExamsPerBatch() >= 1 ? request.getExamsPerBatch() : 20;
 
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại"));
@@ -111,17 +159,8 @@ public class ExamGeneratorService {
             request.setExamStructure(ExamStructureType.CUSTOM);
         }
 
-        // Load all active questions for the subject and any of the selected courses
-        List<Question> allQuestions = questionRepository.findAll().stream()
-                .filter(q -> {
-                    try {
-                        return q.getSubject() != null && q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive());
-                    } catch (Exception e) {
-                        return false;
-                    }
-                })
-                .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> c != null && courseIdSet.contains(c.getId())))
-                .collect(Collectors.toList());
+        // Load common active questions for all selected courses
+        List<Question> allQuestions = resolveAndValidateQuestions(subject, courses, courseIdSet);
 
         List<Question> theories = filterByType(allQuestions, QuestionType.LY_THUYET);
         List<Question> practices = filterByType(allQuestions, QuestionType.THUC_HANH);
@@ -133,6 +172,7 @@ public class ExamGeneratorService {
 
         // Create Master Exam record
         Exam exam = examMapper.toEntity(request, subject, courses);
+        exam.setNumberOfExams(numBatches); // Lưu số bộ đề vào numberOfExams (total_exam_sets)
         
         String deptCode = "KHOA";
         String groupCode = "BOMON";
@@ -158,28 +198,35 @@ public class ExamGeneratorService {
         exam.setCode(uniqueCode);
         exam = examRepository.save(exam);
 
-        Set<Set<UUID>> generatedSets = new HashSet<>();
+        // Generate N batches, each having examsPerBatch details
+        for (int batch = 1; batch <= numBatches; batch++) {
+            Set<Set<UUID>> generatedSetsInBatch = new HashSet<>();
+            for (int i = 0; i < examsPerBatch; i++) {
+                List<Question> selectedQuestions = generateUniqueSet(numT, numP, numE, numS, theories, practices, essays, situations, generatedSetsInBatch);
 
-        // Generate N details
-        for (int i = 0; i < request.getNumberOfExams(); i++) {
-            List<Question> selectedQuestions = generateUniqueSet(numT, numP, numE, numS, theories, practices, essays, situations, generatedSets);
-            
-            ExamDetail detail = ExamDetail.builder()
-                    .examSetCode(exam.getCode() + "-" + String.format("%02d", i + 1))
-                    .orderNumber(i + 1)
-                    .exam(exam)
-                    .build();
-            detail = examDetailRepository.save(detail);
+                String setCode = (numBatches > 1)
+                        ? String.format("%s-B%02d-%02d", exam.getCode(), batch, i + 1)
+                        : String.format("%s-%02d", exam.getCode(), i + 1);
 
-            int order = 1;
-            for (Question q : selectedQuestions) {
-                ExamQuestion eq = ExamQuestion.builder()
-                        .examDetail(detail)
-                        .question(q)
-                        .questionOrder(order++)
-                        .score(q.getScore())
+                ExamDetail detail = ExamDetail.builder()
+                        .batchNumber(batch)
+                        .orderNumber(i + 1)
+                        .examSetCode(setCode)
+                        .exam(exam)
                         .build();
-                examQuestionRepository.save(eq);
+                detail = examDetailRepository.save(detail);
+                exam.getExamDetails().add(detail);
+
+                int order = 1;
+                for (Question q : selectedQuestions) {
+                    ExamQuestion eq = ExamQuestion.builder()
+                            .examDetail(detail)
+                            .question(q)
+                            .questionOrder(order++)
+                            .score(q.getScore())
+                            .build();
+                    examQuestionRepository.save(eq);
+                }
             }
         }
 
@@ -215,13 +262,25 @@ public class ExamGeneratorService {
             subjectChanged = exam.getSubject() == null || !exam.getSubject().getId().equals(subject.getId());
         } catch (Exception ignored) {}
 
+        int numBatches = request.getNumberOfExams() != null && request.getNumberOfExams() >= 1 ? request.getNumberOfExams() : 1;
+        int examsPerBatch = request.getExamsPerBatch() != null && request.getExamsPerBatch() >= 1 ? request.getExamsPerBatch() : 20;
+
+        int currentBatchCount = exam.getNumberOfExams();
+        int currentExamsPerBatch = 0;
+        if (exam.getExamDetails() != null && !exam.getExamDetails().isEmpty()) {
+            int firstB = exam.getExamDetails().get(0).getBatchNumber();
+            currentExamsPerBatch = (int) exam.getExamDetails().stream().filter(d -> d.getBatchNumber() == firstB).count();
+        }
+
+        boolean batchesChanged = currentBatchCount != numBatches;
+        boolean examsPerBatchChanged = currentExamsPerBatch != examsPerBatch;
+
         boolean structureChanged = !java.util.Objects.equals(exam.getNumberOfTheories(), numT)
                 || !java.util.Objects.equals(exam.getNumberOfPractices(), numP)
                 || !java.util.Objects.equals(exam.getNumberOfEssays(), numE)
                 || !java.util.Objects.equals(exam.getNumberOfSituations(), numS)
                 || subjectChanged
                 || coursesChanged;
-        boolean examCountChanged = !java.util.Objects.equals(exam.getNumberOfExams(), request.getNumberOfExams());
 
         exam.setTitle(request.getTitle());
         exam.setSemester(request.getSemester());
@@ -248,13 +307,8 @@ public class ExamGeneratorService {
 
         String unitNormalization = request.getUnit();
         if (unitNormalization == null || unitNormalization.trim().isEmpty()) {
-            // Xử lý khi giá trị rỗng/null tùy theo logic của bạn (ví dụ: gán null, ném exception, v.v.)
             unitNormalization = null;
         } else {
-            // Regex bắt linh hoạt:
-            // - "đại đội" (không phân biệt hoa thường) + khoảng trắng + số/tên đại đội
-            // - Dấu phân tách ở giữa: có thể là dấu phẩy (,), gạch ngang (-), gạch dưới (_),...
-            // - "tiểu đoàn" (không phân biệt hoa thường) + khoảng trắng + số/tên tiểu đoàn
             Pattern pattern = Pattern.compile(
                     "(?i)đại\\s+đội\\s+([\\w\\d\\p{L}]+)\\s*[,\\-_/\\s]+\\s*tiểu\\s+đoàn\\s+([\\w\\d\\p{L}]+)",
                     Pattern.UNICODE_CHARACTER_CLASS
@@ -266,8 +320,6 @@ public class ExamGeneratorService {
                 String tieuDoan = matcher.group(2).trim();
                 unitNormalization = String.format("Đại đội %s - Tiểu đoàn %s", daiDoi, tieuDoan);
             } else {
-                // Trường hợp người dùng nhập không đúng cấu trúc (hoặc chỉ nhập 1 phần)
-                // Cách an toàn: chuẩn hóa khoảng trắng thừa và dấu ngăn cách cơ bản
                 unitNormalization = unitNormalization.trim()
                         .replaceAll("(?i)đại\\s+đội", "Đại đội")
                         .replaceAll("(?i)tiểu\\s+đoàn", "Tiểu đoàn")
@@ -289,22 +341,14 @@ public class ExamGeneratorService {
         boolean shouldRegenerate = Boolean.TRUE.equals(request.getRegenerateQuestions()) 
                 || exam.getExamDetails() == null || exam.getExamDetails().isEmpty() 
                 || structureChanged
-                || examCountChanged;
+                || batchesChanged
+                || examsPerBatchChanged;
 
-        exam.setNumberOfExams(request.getNumberOfExams());
+        exam.setNumberOfExams(numBatches);
 
         if (shouldRegenerate) {
-            // Load all active questions
-            List<Question> allQuestions = questionRepository.findAll().stream()
-                    .filter(q -> {
-                        try {
-                            return q.getSubject() != null && q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive());
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    })
-                    .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> c != null && courseIdSet.contains(c.getId())))
-                    .collect(Collectors.toList());
+            // Load common active questions
+            List<Question> allQuestions = resolveAndValidateQuestions(subject, courses, courseIdSet);
 
             List<Question> theories = filterByType(allQuestions, QuestionType.LY_THUYET);
             List<Question> practices = filterByType(allQuestions, QuestionType.THUC_HANH);
@@ -326,26 +370,34 @@ public class ExamGeneratorService {
             }
             exam = examRepository.saveAndFlush(exam);
 
-            Set<Set<UUID>> generatedSets = new HashSet<>();
-            for (int i = 0; i < request.getNumberOfExams(); i++) {
-                List<Question> selectedQuestions = generateUniqueSet(numT, numP, numE, numS, theories, practices, essays, situations, generatedSets);
+            for (int batch = 1; batch <= numBatches; batch++) {
+                Set<Set<UUID>> generatedSetsInBatch = new HashSet<>();
+                for (int i = 0; i < examsPerBatch; i++) {
+                    List<Question> selectedQuestions = generateUniqueSet(numT, numP, numE, numS, theories, practices, essays, situations, generatedSetsInBatch);
 
-                ExamDetail detail = ExamDetail.builder()
-                        .examSetCode(exam.getCode() + "-" + String.format("%02d", i + 1))
-                        .orderNumber(i + 1)
-                        .exam(exam)
-                        .build();
-                detail = examDetailRepository.save(detail);
+                    String setCode = (numBatches > 1)
+                            ? String.format("%s-B%02d-%02d", exam.getCode(), batch, i + 1)
+                            : String.format("%s-%02d", exam.getCode(), i + 1);
 
-                int order = 1;
-                for (Question q : selectedQuestions) {
-                    ExamQuestion eq = ExamQuestion.builder()
-                            .examDetail(detail)
-                            .question(q)
-                            .questionOrder(order++)
-                            .score(q.getScore())
+                    ExamDetail detail = ExamDetail.builder()
+                            .batchNumber(batch)
+                            .orderNumber(i + 1)
+                            .examSetCode(setCode)
+                            .exam(exam)
                             .build();
-                    examQuestionRepository.save(eq);
+                    detail = examDetailRepository.save(detail);
+                exam.getExamDetails().add(detail);
+
+                    int order = 1;
+                    for (Question q : selectedQuestions) {
+                        ExamQuestion eq = ExamQuestion.builder()
+                                .examDetail(detail)
+                                .question(q)
+                                .questionOrder(order++)
+                                .score(q.getScore())
+                                .build();
+                        examQuestionRepository.save(eq);
+                    }
                 }
             }
         }

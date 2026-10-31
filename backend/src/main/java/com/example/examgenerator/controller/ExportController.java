@@ -4,12 +4,14 @@ import com.example.examgenerator.service.ExportService;
 import com.example.examgenerator.repository.ExamRepository;
 import com.example.examgenerator.entity.Exam;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
@@ -32,8 +34,8 @@ public class ExportController {
         
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-        org.springframework.http.ContentDisposition contentDisposition = org.springframework.http.ContentDisposition.builder("attachment")
-                .filename(filename, java.nio.charset.StandardCharsets.UTF_8)
+        ContentDisposition contentDisposition = ContentDisposition.builder("attachment")
+                .filename(filename, StandardCharsets.UTF_8)
                 .build();
         headers.setContentDisposition(contentDisposition);
         
@@ -45,5 +47,45 @@ public class ExportController {
     @GetMapping("/exams/{id}/word-answers")
     public ResponseEntity<byte[]> exportExamWithAnswersToWord(@PathVariable UUID id) throws IOException {
         return exportExamToWord(id, true);
+    }
+
+    @GetMapping("/exams/{id}/zip-questions")
+    public ResponseEntity<byte[]> exportQuestionsZip(@PathVariable UUID id) throws IOException {
+        byte[] zipBytes = exportService.exportQuestionsZip(id);
+
+        Exam exam = examRepository.findById(id).orElse(null);
+        String base = (exam != null && exam.getCode() != null) ? exam.getCode() : "exam";
+        String filename = base + "_questions.zip";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.valueOf("application/zip"));
+        ContentDisposition contentDisposition = ContentDisposition.builder("attachment")
+                .filename(filename, StandardCharsets.UTF_8)
+                .build();
+        headers.setContentDisposition(contentDisposition);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(zipBytes);
+    }
+
+    @GetMapping("/exams/{id}/zip-answers")
+    public ResponseEntity<byte[]> exportAnswersZip(@PathVariable UUID id) throws IOException {
+        byte[] zipBytes = exportService.exportAnswersZip(id);
+
+        Exam exam = examRepository.findById(id).orElse(null);
+        String base = (exam != null && exam.getCode() != null) ? exam.getCode() : "exam";
+        String filename = base + "_answers.zip";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.valueOf("application/zip"));
+        ContentDisposition contentDisposition = ContentDisposition.builder("attachment")
+                .filename(filename, StandardCharsets.UTF_8)
+                .build();
+        headers.setContentDisposition(contentDisposition);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(zipBytes);
     }
 }

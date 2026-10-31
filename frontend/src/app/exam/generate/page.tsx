@@ -44,7 +44,8 @@ const formSchema = z.object({
   academicYear: z.string().optional().default(''),
   durationMinutes: z.coerce.number().optional().default(90),
   examStructure: z.nativeEnum(ExamStructureType),
-  numberOfExams: z.coerce.number().min(1, 'Số lượng đề tối thiểu là 1').max(20, 'Sinh tối đa 20 đề mỗi đợt'),
+  numberOfExams: z.coerce.number().min(1, 'Số lượng bộ đề tối thiểu là 1'),
+  examsPerBatch: z.coerce.number().min(1, 'Số đề nhỏ trong mỗi bộ tối thiểu là 1'),
   numberOfTheories: z.coerce.number().min(0, 'Số câu không được âm'),
   numberOfPractices: z.coerce.number().min(0, 'Số câu không được âm'),
   numberOfEssays: z.coerce.number().min(0, 'Số câu không được âm'),
@@ -79,6 +80,7 @@ const ExamGeneratePage = () => {
       durationMinutes: 90,
       examStructure: ExamStructureType.THEORY_PRACTICE,
       numberOfExams: 1,
+      examsPerBatch: 20,
       numberOfTheories: 1,
       numberOfPractices: 1,
       numberOfEssays: 0,
@@ -278,10 +280,26 @@ const ExamGeneratePage = () => {
                 name="numberOfExams"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Số lượng đề cần sinh (1 - 20)</FormLabel>
+                    <FormLabel>Số lượng bộ đề <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input type="number" min="1" max="20" {...field} />
+                      <Input type="number" min="1" {...field} />
                     </FormControl>
+                    <FormDescription>Số bộ đề cần tạo (mỗi bộ đề xuất ra 1 file Word riêng)</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="examsPerBatch"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Số đề nhỏ trong mỗi bộ <span className="text-destructive">*</span></FormLabel>
+                    <FormControl>
+                      <Input type="number" min="1" {...field} />
+                    </FormControl>
+                    <FormDescription>Số lượng đề thi con trong mỗi bộ đề (VD: 20 đề)</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
