@@ -1,12 +1,17 @@
 package com.example.examgenerator.mapper;
 
 import com.example.examgenerator.dto.request.QuestionRequest;
+import com.example.examgenerator.dto.response.CourseResponse;
 import com.example.examgenerator.dto.response.QuestionResponse;
 import com.example.examgenerator.entity.Question;
 import com.example.examgenerator.entity.Subject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -38,6 +43,26 @@ public class QuestionMapper {
             return null;
         }
 
+        UUID subjectId = null;
+        String subjectName = null;
+        try {
+            if (entity.getSubject() != null) {
+                subjectId = entity.getSubject().getId();
+                subjectName = entity.getSubject().getSubjectName();
+            }
+        } catch (Exception ignored) {}
+
+        List<CourseResponse> coursesList = Collections.emptyList();
+        try {
+            if (entity.getCourses() != null) {
+                coursesList = entity.getCourses().stream()
+                        .filter(Objects::nonNull)
+                        .map(courseMapper::toResponse)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception ignored) {}
+
         return QuestionResponse.builder()
                 .id(entity.getId())
                 .code(entity.getCode())
@@ -47,11 +72,9 @@ public class QuestionMapper {
                 .score(entity.getScore())
                 .answer(entity.getAnswer())
                 .mediaUrl(entity.getMediaUrl())
-                .subjectId(entity.getSubject() != null ? entity.getSubject().getId() : null)
-                .subjectName(entity.getSubject() != null ? entity.getSubject().getSubjectName() : null)
-                .courses(entity.getCourses() != null 
-                        ? entity.getCourses().stream().map(courseMapper::toResponse).collect(Collectors.toList()) 
-                        : null)
+                .subjectId(subjectId)
+                .subjectName(subjectName)
+                .courses(coursesList)
                 .isActive(entity.getIsActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

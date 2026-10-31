@@ -12,6 +12,8 @@ import java.util.UUID;
 public interface SubjectRepository extends JpaRepository<Subject, UUID> {
     boolean existsBySubjectCode(String subjectCode);
     List<Subject> findByDepartmentGroupId(UUID departmentGroupId);
+    boolean existsByDepartmentGroupId(UUID departmentGroupId);
+    long countByDepartmentGroupId(UUID departmentGroupId);
 
     Optional<Subject> findBySubjectCode(String subjectCode);
 }

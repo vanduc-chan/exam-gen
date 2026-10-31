@@ -16,6 +16,11 @@ import java.util.UUID;
 public interface QuestionRepository extends JpaRepository<Question, UUID> {
     
     boolean existsByCode(String code);
+    boolean existsBySubjectId(UUID subjectId);
+    long countBySubjectId(UUID subjectId);
+
+    @Query("SELECT COUNT(DISTINCT q) FROM Question q JOIN q.courses c WHERE c.id = :courseId")
+    long countByCourseId(@Param("courseId") UUID courseId);
 
     @Query("SELECT DISTINCT q FROM Question q LEFT JOIN q.courses c WHERE " +
            "(:subjectId IS NULL OR q.subject.id = :subjectId) AND " +

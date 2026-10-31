@@ -578,16 +578,32 @@ public class ExportService {
 
                 for (int qIdx = 0; qIdx < questions.size(); qIdx++) {
                     ExamQuestion eq = questions.get(qIdx);
-                    String contentStr = eq.getQuestion().getContent();
+                    String contentStr = (eq.getQuestion() != null && eq.getQuestion().getContent() != null) ? eq.getQuestion().getContent() : "";
                     HtmlToWordRenderer.renderToCell(cell, "Câu " + (qIdx + 1) + ": ", contentStr, "Times New Roman", 13);
                 }
 
                 currentDetailIdx++;
 
-                // Intervening spacer paragraph (prevents Word table merging and provides clean spacing)
-                XWPFParagraph sep = document.createParagraph();
-                sep.setSpacingBefore(0);
-                sep.setSpacingAfter(40);
+                // Between exams on the same page: generate dashed cut line so users can cut each exam slip
+                if (eNum < countInPage - 1 && currentDetailIdx < details.size()) {
+                    XWPFParagraph cutPara = document.createParagraph();
+                    cutPara.setAlignment(ParagraphAlignment.CENTER);
+                    cutPara.setSpacingBefore(20);
+                    cutPara.setSpacingAfter(20);
+                    // cutPara.setBorderBottom(Borders.DASHED);
+
+                    // XWPFRun cutRun = cutPara.createRun();
+                    // cutRun.setFontFamily("Times New Roman");
+                    // cutRun.setFontSize(9);
+                    // cutRun.setItalic(true);
+                    // cutRun.setColor("777777");
+                    // cutRun.setText("✂ - - - - - - - - - - - - - - - - - - (Cắt tại đây) - - - - - - - - - - - - - - - - - - ✂");
+                } else {
+                    // Intervening spacer paragraph (prevents Word table merging and provides clean spacing)
+                    XWPFParagraph sep = document.createParagraph();
+                    sep.setSpacingBefore(0);
+                    sep.setSpacingAfter(40);
+                }
             }
 
             // On the last page: append Signatures & Exam Metadata Table
@@ -724,24 +740,15 @@ public class ExportService {
             List<ExamQuestion> questions = examQuestionRepository.findByExamDetailId(detail.getId());
 
             if (dIndex > 0) {
-                // Dashed line between exam sets for cutting
-                XWPFParagraph cutPara = document.createParagraph();
-                cutPara.setAlignment(ParagraphAlignment.CENTER);
-                cutPara.setSpacingBefore(180);
-                cutPara.setSpacingAfter(180);
-                cutPara.setBorderBottom(Borders.DASHED);
-
-                XWPFRun cutRun = cutPara.createRun();
-                cutRun.setFontFamily("Times New Roman");
-                cutRun.setFontSize(10);
-                cutRun.setItalic(true);
-                cutRun.setColor("777777");
-                cutRun.setText("✂ - - - - - - - - - - - - - - - - - - (Cắt tại đây) - - - - - - - - - - - - - - - - - - ✂");
+                // Xuống dòng cách 1 khoảng giữa các đề ở file đáp án
+                XWPFParagraph spacer = document.createParagraph();
+                spacer.setSpacingBefore(60);
+                spacer.setSpacingAfter(60);
             }
 
             XWPFParagraph header = document.createParagraph();
             header.setAlignment(ParagraphAlignment.CENTER);
-            header.setSpacingBefore(100);
+            header.setSpacingBefore(120);
             header.setSpacingAfter(100);
             XWPFRun runHeader = header.createRun();
             runHeader.setBold(true);
@@ -751,7 +758,7 @@ public class ExportService {
 
             for (int i = 0; i < questions.size(); i++) {
                 ExamQuestion eq = questions.get(i);
-                String contentStr = eq.getQuestion().getContent();
+                String contentStr = (eq.getQuestion() != null && eq.getQuestion().getContent() != null) ? eq.getQuestion().getContent() : "";
                 HtmlToWordRenderer.renderQuestionToDocument(
                         document,
                         "Câu " + (i + 1) + ": ",
@@ -772,7 +779,7 @@ public class ExportService {
                 runAnsHeader.setFontSize(13);
                 runAnsHeader.setText("ĐÁP ÁN");
 
-                if (eq.getQuestion().getAnswer() != null && !eq.getQuestion().getAnswer().trim().isEmpty()) {
+                if (eq.getQuestion() != null && eq.getQuestion().getAnswer() != null && !eq.getQuestion().getAnswer().trim().isEmpty()) {
                     HtmlToWordRenderer.renderToDocument(document, eq.getQuestion().getAnswer(), "Times New Roman", 13);
                 }
             }

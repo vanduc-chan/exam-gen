@@ -12,6 +12,8 @@ import java.util.UUID;
 public interface DepartmentGroupRepository extends JpaRepository<DepartmentGroup, UUID> {
     boolean existsByCode(String code);
     List<DepartmentGroup> findByDepartmentId(UUID departmentId);
+    boolean existsByDepartmentId(UUID departmentId);
+    long countByDepartmentId(UUID departmentId);
 
     Optional<DepartmentGroup> findByCode(String groupCode);
 }

@@ -24,4 +24,9 @@ public interface ExamRepository extends JpaRepository<Exam, UUID> {
             Pageable pageable);
 
     boolean existsByCode(String code);
+    boolean existsBySubjectId(UUID subjectId);
+    long countBySubjectId(UUID subjectId);
+
+    @Query("SELECT COUNT(DISTINCT e) FROM Exam e LEFT JOIN e.courses c WHERE e.course.id = :courseId OR c.id = :courseId")
+    long countByCourseId(@Param("courseId") UUID courseId);
 }

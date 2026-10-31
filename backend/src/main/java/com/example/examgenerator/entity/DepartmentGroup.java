@@ -40,7 +40,7 @@ public class DepartmentGroup extends BaseEntity {
     private Department department;
 
     @Builder.Default
-    @OneToMany(mappedBy = "departmentGroup", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "departmentGroup")
     private List<Subject> subjects = new ArrayList<>();
 
     @Builder.Default

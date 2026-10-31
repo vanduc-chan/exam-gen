@@ -6,6 +6,8 @@ import com.example.examgenerator.entity.Course;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.CourseMapper;
 import com.example.examgenerator.repository.CourseRepository;
+import com.example.examgenerator.repository.ExamRepository;
+import com.example.examgenerator.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 public class CourseService {
 
     private final CourseRepository courseRepository;
+    private final ExamRepository examRepository;
+    private final QuestionRepository questionRepository;
     private final CourseMapper courseMapper;
 
     @Transactional(readOnly = true)
@@ -63,6 +67,14 @@ public class CourseService {
     public void deleteCourse(UUID id) {
         if (!courseRepository.existsById(id)) {
             throw new ResourceNotFoundException("Đối tượng thi không tồn tại với ID: " + id);
+        }
+        long examCount = examRepository.countByCourseId(id);
+        if (examCount > 0) {
+            throw new IllegalArgumentException("Không thể xóa Đối tượng dự thi này vì đang có " + examCount + " Đợt sinh đề sử dụng đối tượng này. Vui lòng xóa hoặc cập nhật Đợt sinh đề liên quan trước!");
+        }
+        long questionCount = questionRepository.countByCourseId(id);
+        if (questionCount > 0) {
+            throw new IllegalArgumentException("Không thể xóa Đối tượng dự thi này vì đang có " + questionCount + " Câu hỏi gắn với đối tượng này. Vui lòng cập nhật hoặc xóa Câu hỏi liên quan trước!");
         }
         try {
             courseRepository.deleteById(id);

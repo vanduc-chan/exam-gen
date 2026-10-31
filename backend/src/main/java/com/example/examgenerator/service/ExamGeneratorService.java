@@ -113,8 +113,14 @@ public class ExamGeneratorService {
 
         // Load all active questions for the subject and any of the selected courses
         List<Question> allQuestions = questionRepository.findAll().stream()
-                .filter(q -> q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive()))
-                .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> courseIdSet.contains(c.getId())))
+                .filter(q -> {
+                    try {
+                        return q.getSubject() != null && q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive());
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> c != null && courseIdSet.contains(c.getId())))
                 .collect(Collectors.toList());
 
         List<Question> theories = filterByType(allQuestions, QuestionType.LY_THUYET);
@@ -128,9 +134,16 @@ public class ExamGeneratorService {
         // Create Master Exam record
         Exam exam = examMapper.toEntity(request, subject, courses);
         
-        String deptCode = (subject.getDepartmentGroup() != null && subject.getDepartmentGroup().getDepartment() != null) 
-                          ? subject.getDepartmentGroup().getDepartment().getCode() : "KHOA";
-        String groupCode = subject.getDepartmentGroup() != null ? subject.getDepartmentGroup().getCode() : "BOMON";
+        String deptCode = "KHOA";
+        String groupCode = "BOMON";
+        try {
+            if (subject.getDepartmentGroup() != null) {
+                groupCode = subject.getDepartmentGroup().getCode();
+                if (subject.getDepartmentGroup().getDepartment() != null) {
+                    deptCode = subject.getDepartmentGroup().getDepartment().getCode();
+                }
+            }
+        } catch (Exception ignored) {}
         String subjectCode = subject.getSubjectCode();
         String courseCode = resolveCourseCode(courses);
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("ddMMyy"));
@@ -182,9 +195,14 @@ public class ExamGeneratorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại"));
         Set<Course> courses = resolveCourses(request);
         Set<UUID> courseIdSet = courses.stream().map(Course::getId).collect(Collectors.toSet());
-        Set<UUID> oldCourseIds = (exam.getCourses() != null && !exam.getCourses().isEmpty())
-                ? exam.getCourses().stream().map(Course::getId).collect(Collectors.toSet())
-                : (exam.getCourse() != null ? Collections.singleton(exam.getCourse().getId()) : Collections.emptySet());
+        Set<UUID> oldCourseIds = Collections.emptySet();
+        try {
+            if (exam.getCourses() != null && !exam.getCourses().isEmpty()) {
+                oldCourseIds = exam.getCourses().stream().map(Course::getId).collect(Collectors.toSet());
+            } else if (exam.getCourse() != null) {
+                oldCourseIds = Collections.singleton(exam.getCourse().getId());
+            }
+        } catch (Exception ignored) {}
         boolean coursesChanged = !oldCourseIds.equals(courseIdSet);
 
         int[] counts = resolveQuestionCounts(request);
@@ -192,11 +210,16 @@ public class ExamGeneratorService {
 
         ExamStructureType structure = request.getExamStructure() != null ? request.getExamStructure() : ExamStructureType.CUSTOM;
 
+        boolean subjectChanged = true;
+        try {
+            subjectChanged = exam.getSubject() == null || !exam.getSubject().getId().equals(subject.getId());
+        } catch (Exception ignored) {}
+
         boolean structureChanged = !java.util.Objects.equals(exam.getNumberOfTheories(), numT)
                 || !java.util.Objects.equals(exam.getNumberOfPractices(), numP)
                 || !java.util.Objects.equals(exam.getNumberOfEssays(), numE)
                 || !java.util.Objects.equals(exam.getNumberOfSituations(), numS)
-                || !exam.getSubject().getId().equals(subject.getId())
+                || subjectChanged
                 || coursesChanged;
         boolean examCountChanged = !java.util.Objects.equals(exam.getNumberOfExams(), request.getNumberOfExams());
 
@@ -264,7 +287,7 @@ public class ExamGeneratorService {
         exam.setCourse(courses.iterator().next());
 
         boolean shouldRegenerate = Boolean.TRUE.equals(request.getRegenerateQuestions()) 
-                || exam.getExamDetails().isEmpty() 
+                || exam.getExamDetails() == null || exam.getExamDetails().isEmpty() 
                 || structureChanged
                 || examCountChanged;
 
@@ -273,8 +296,14 @@ public class ExamGeneratorService {
         if (shouldRegenerate) {
             // Load all active questions
             List<Question> allQuestions = questionRepository.findAll().stream()
-                    .filter(q -> q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive()))
-                    .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> courseIdSet.contains(c.getId())))
+                    .filter(q -> {
+                        try {
+                            return q.getSubject() != null && q.getSubject().getId().equals(subject.getId()) && Boolean.TRUE.equals(q.getIsActive());
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .filter(q -> q.getCourses() == null || q.getCourses().isEmpty() || q.getCourses().stream().anyMatch(c -> c != null && courseIdSet.contains(c.getId())))
                     .collect(Collectors.toList());
 
             List<Question> theories = filterByType(allQuestions, QuestionType.LY_THUYET);
@@ -292,7 +321,9 @@ public class ExamGeneratorService {
             examQuestionRepository.flush();
             examDetailRepository.deleteAll(oldDetails);
             examDetailRepository.flush();
-            exam.getExamDetails().clear();
+            if (exam.getExamDetails() != null) {
+                exam.getExamDetails().clear();
+            }
             exam = examRepository.saveAndFlush(exam);
 
             Set<Set<UUID>> generatedSets = new HashSet<>();
@@ -325,11 +356,25 @@ public class ExamGeneratorService {
 
     @Transactional
     public void deleteExam(UUID id) {
-        if (!examRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Đợt thi không tồn tại với ID: " + id);
-        }
+        Exam exam = examRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Đợt thi không tồn tại với ID: " + id));
         try {
-            examRepository.deleteById(id);
+            List<ExamDetail> details = examDetailRepository.findByExamId(id);
+            for (ExamDetail detail : details) {
+                examQuestionRepository.deleteByExamDetailId(detail.getId());
+            }
+            examQuestionRepository.flush();
+            examDetailRepository.deleteAll(details);
+            examDetailRepository.flush();
+
+            if (exam.getCourses() != null) {
+                exam.getCourses().clear();
+            }
+            if (exam.getExamDetails() != null) {
+                exam.getExamDetails().clear();
+            }
+            examRepository.saveAndFlush(exam);
+            examRepository.delete(exam);
             examRepository.flush();
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw new IllegalArgumentException("Không thể xóa đợt thi này do có dữ liệu liên quan. Vui lòng kiểm tra lại!");

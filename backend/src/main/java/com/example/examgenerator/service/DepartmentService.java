@@ -63,7 +63,13 @@ public class DepartmentService {
                     .build();
 
             List<DepartmentGroup> deptGroups = groups.stream()
-                    .filter(g -> g.getDepartment() != null && g.getDepartment().getId().equals(dept.getId()))
+                    .filter(g -> {
+                        try {
+                            return g.getDepartment() != null && g.getDepartment().getId().equals(dept.getId());
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
                     .collect(Collectors.toList());
 
             for (DepartmentGroup group : deptGroups) {
@@ -77,7 +83,13 @@ public class DepartmentService {
                         .build();
 
                 List<Subject> groupSubjects = subjects.stream()
-                        .filter(s -> s.getDepartmentGroup() != null && s.getDepartmentGroup().getId().equals(group.getId()))
+                        .filter(s -> {
+                            try {
+                                return s.getDepartmentGroup() != null && s.getDepartmentGroup().getId().equals(group.getId());
+                            } catch (Exception e) {
+                                return false;
+                            }
+                        })
                         .collect(Collectors.toList());
 
                 for (Subject sub : groupSubjects) {
@@ -143,6 +155,10 @@ public class DepartmentService {
     public void deleteDepartment(UUID id) {
         if (!departmentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Khoa không tồn tại với ID: " + id);
+        }
+        long groupCount = departmentGroupRepository.countByDepartmentId(id);
+        if (groupCount > 0) {
+            throw new IllegalArgumentException("Không thể xóa Khoa/Phòng này vì đang có " + groupCount + " Tổ bộ môn trực thuộc. Vui lòng xóa hoặc chuyển Tổ bộ môn trước!");
         }
         try {
             departmentRepository.deleteById(id);

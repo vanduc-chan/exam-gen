@@ -27,9 +27,16 @@ public class DataInitializer implements CommandLineRunner {
     private final QuestionRepository questionRepository;
     private final ExamRepository examRepository;
     private final ExamGeneratorService examGeneratorService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Override
     public void run(String... args) {
+        try {
+            jdbcTemplate.execute("PRAGMA foreign_keys = ON;");
+        } catch (Exception ex) {
+            log.warn("Could not enable SQLite foreign_keys pragma: {}", ex.getMessage());
+        }
+
         if (departmentRepository.count() == 0 || questionRepository.count() < 10) {
             log.info("Database is empty or has minimal data. Starting comprehensive seed data initialization...");
             seedData();
@@ -37,6 +44,31 @@ public class DataInitializer implements CommandLineRunner {
         } else {
             log.info("Database already contains data ({} departments, {} questions). Skipping automatic seed.",
                     departmentRepository.count(), questionRepository.count());
+            if (examRepository.count() == 0) {
+                try {
+                    Optional<Subject> subOpt = subjectRepository.findBySubjectCode("KTCB");
+                    Optional<Course> courseOpt = courseRepository.findAll().stream().findFirst();
+                    if (subOpt.isPresent() && courseOpt.isPresent()) {
+                        ExamRequest sampleRequest = new ExamRequest();
+                        sampleRequest.setTitle("ĐỀ THI TỐT NGHIỆP");
+                        sampleRequest.setSubjectId(subOpt.get().getId());
+                        sampleRequest.setCourseId(courseOpt.get().getId());
+                        sampleRequest.setSemester("1");
+                        sampleRequest.setAcademicYear("2025-2026");
+                        sampleRequest.setDurationMinutes(90);
+                        sampleRequest.setExamStructure(ExamStructureType.THEORY_PRACTICE);
+                        sampleRequest.setNumberOfExams(12);
+                        sampleRequest.setNumberOfTheories(1);
+                        sampleRequest.setNumberOfPractices(1);
+                        sampleRequest.setNumberOfEssays(0);
+                        sampleRequest.setNumberOfSituations(0);
+                        examGeneratorService.generateExam(sampleRequest);
+                        log.info("Generated default sample exam for subject KTCB.");
+                    }
+                } catch (Exception ex) {
+                    log.warn("Skipped sample exam generation: {}", ex.getMessage());
+                }
+            }
         }
 
         // Migrate existing exams to ensure courses collection is populated

@@ -6,6 +6,8 @@ import com.example.examgenerator.entity.Department;
 import com.example.examgenerator.entity.DepartmentGroup;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 public class DepartmentGroupMapper {
 
@@ -28,13 +30,22 @@ public class DepartmentGroupMapper {
             return null;
         }
 
+        UUID deptId = null;
+        String deptName = null;
+        try {
+            if (entity.getDepartment() != null) {
+                deptId = entity.getDepartment().getId();
+                deptName = entity.getDepartment().getName();
+            }
+        } catch (Exception ignored) {}
+
         return DepartmentGroupResponse.builder()
                 .id(entity.getId())
                 .code(entity.getCode())
                 .name(entity.getName())
                 .description(entity.getDescription())
-                .departmentId(entity.getDepartment() != null ? entity.getDepartment().getId() : null)
-                .departmentName(entity.getDepartment() != null ? entity.getDepartment().getName() : null)
+                .departmentId(deptId)
+                .departmentName(deptName)
                 .isActive(entity.getIsActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

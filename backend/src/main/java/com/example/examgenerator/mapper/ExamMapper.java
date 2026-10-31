@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Component
 public class ExamMapper {
@@ -77,30 +76,41 @@ public class ExamMapper {
         List<String> courseNames = new ArrayList<>();
         List<String> courseCodes = new ArrayList<>();
 
-        if (entity.getCourses() != null && !entity.getCourses().isEmpty()) {
-            for (Course c : entity.getCourses()) {
-                if (c != null) {
-                    if (c.getId() != null) courseIds.add(c.getId());
-                    if (c.getName() != null) courseNames.add(c.getName());
-                    if (c.getCourseCode() != null) courseCodes.add(c.getCourseCode());
+        try {
+            if (entity.getCourses() != null && !entity.getCourses().isEmpty()) {
+                for (Course c : entity.getCourses()) {
+                    if (c != null) {
+                        if (c.getId() != null) courseIds.add(c.getId());
+                        if (c.getName() != null) courseNames.add(c.getName());
+                        if (c.getCourseCode() != null) courseCodes.add(c.getCourseCode());
+                    }
                 }
+            } else if (entity.getCourse() != null) {
+                Course c = entity.getCourse();
+                if (c.getId() != null) courseIds.add(c.getId());
+                if (c.getName() != null) courseNames.add(c.getName());
+                if (c.getCourseCode() != null) courseCodes.add(c.getCourseCode());
             }
-        } else if (entity.getCourse() != null) {
-            Course c = entity.getCourse();
-            if (c.getId() != null) courseIds.add(c.getId());
-            if (c.getName() != null) courseNames.add(c.getName());
-            if (c.getCourseCode() != null) courseCodes.add(c.getCourseCode());
-        }
+        } catch (Exception ignored) {}
 
-        UUID primaryCourseId = !courseIds.isEmpty() ? courseIds.get(0) : (entity.getCourse() != null ? entity.getCourse().getId() : null);
-        String formattedCourseName = !courseNames.isEmpty() ? String.join(", ", courseNames) : (entity.getCourse() != null ? entity.getCourse().getName() : null);
+        UUID primaryCourseId = !courseIds.isEmpty() ? courseIds.get(0) : null;
+        String formattedCourseName = !courseNames.isEmpty() ? String.join(", ", courseNames) : null;
+
+        UUID subjectId = null;
+        String subjectName = null;
+        try {
+            if (entity.getSubject() != null) {
+                subjectId = entity.getSubject().getId();
+                subjectName = entity.getSubject().getSubjectName();
+            }
+        } catch (Exception ignored) {}
 
         return ExamResponse.builder()
                 .id(entity.getId())
                 .code(entity.getCode())
                 .title(entity.getTitle())
-                .subjectId(entity.getSubject() != null ? entity.getSubject().getId() : null)
-                .subjectName(entity.getSubject() != null ? entity.getSubject().getSubjectName() : null)
+                .subjectId(subjectId)
+                .subjectName(subjectName)
                 .courseId(primaryCourseId)
                 .courseName(formattedCourseName)
                 .courseIds(courseIds)

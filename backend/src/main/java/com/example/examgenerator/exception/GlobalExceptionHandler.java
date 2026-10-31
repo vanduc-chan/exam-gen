@@ -1,11 +1,13 @@
 package com.example.examgenerator.exception;
 
 import com.example.examgenerator.dto.response.ApiResponse;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.jpa.JpaObjectRetrievalFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +31,13 @@ public class GlobalExceptionHandler {
         log.warn("Resource not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(404, ex.getMessage()));
+    }
+
+    @ExceptionHandler({EntityNotFoundException.class, JpaObjectRetrievalFailureException.class})
+    public ResponseEntity<ApiResponse<Void>> handleEntityNotFound(Exception ex) {
+        log.warn("Entity reference not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(404, "Dữ liệu liên kết không tồn tại hoặc đã bị xóa khỏi hệ thống. Vui lòng kiểm tra lại!"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

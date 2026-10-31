@@ -157,10 +157,7 @@ const ExamGeneratePage = () => {
 
   return (
     <div className="p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-6">
-      <div>
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Tạo Đợt Sinh Đề Mới</h2>
-        <p className="text-sm text-muted-foreground mt-1">Cấu hình thông tin kỳ thi và số lượng từng loại câu hỏi để hệ thống tự động sinh đề.</p>
-      </div>
       
       {errorMsg && (
         <Alert variant="destructive">
@@ -260,7 +257,16 @@ const ExamGeneratePage = () => {
                   <FormItem>
                     <FormLabel>Thời gian thi <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input
+                        type="date"
+                        className="w-full cursor-pointer justify-between [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker();
+                          } catch (_) {}
+                        }}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

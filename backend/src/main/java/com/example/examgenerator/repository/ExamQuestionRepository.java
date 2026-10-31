@@ -11,4 +11,7 @@ import java.util.UUID;
 public interface ExamQuestionRepository extends JpaRepository<ExamQuestion, UUID> {
     List<ExamQuestion> findByExamDetailId(UUID examDetailId);
     void deleteByExamDetailId(UUID examDetailId);
+    boolean existsByQuestionId(UUID questionId);
+    boolean existsByQuestionIdIn(List<UUID> questionIds);
+    long countByQuestionIdIn(List<UUID> questionIds);
 }

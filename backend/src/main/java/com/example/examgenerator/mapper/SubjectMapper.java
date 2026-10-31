@@ -6,6 +6,8 @@ import com.example.examgenerator.entity.DepartmentGroup;
 import com.example.examgenerator.entity.Subject;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 public class SubjectMapper {
 
@@ -27,13 +29,22 @@ public class SubjectMapper {
             return null;
         }
 
+        UUID groupId = null;
+        String groupName = null;
+        try {
+            if (entity.getDepartmentGroup() != null) {
+                groupId = entity.getDepartmentGroup().getId();
+                groupName = entity.getDepartmentGroup().getName();
+            }
+        } catch (Exception ignored) {}
+
         return SubjectResponse.builder()
                 .id(entity.getId())
                 .subjectCode(entity.getSubjectCode())
                 .subjectName(entity.getSubjectName())
                 .description(entity.getDescription())
-                .departmentGroupId(entity.getDepartmentGroup() != null ? entity.getDepartmentGroup().getId() : null)
-                .departmentGroupName(entity.getDepartmentGroup() != null ? entity.getDepartmentGroup().getName() : null)
+                .departmentGroupId(groupId)
+                .departmentGroupName(groupName)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

@@ -544,9 +544,16 @@ public class HtmlToWordRenderer {
     }
 
     /**
-     * Render HTML or plain text into an XWPFTableCell (for exam boxes).
+     * Render HTML or plain text into an XWPFTableCell (for exam boxes), defaulting to 1 tab indent.
      */
     public static void renderToCell(XWPFTableCell cell, String prefix, String content, String defaultFont, int defaultFontSize) {
+        renderToCell(cell, prefix, content, defaultFont, defaultFontSize, true);
+    }
+
+    /**
+     * Render HTML or plain text into an XWPFTableCell with optional tab indent at the start of the question.
+     */
+    public static void renderToCell(XWPFTableCell cell, String prefix, String content, String defaultFont, int defaultFontSize, boolean withTabIndent) {
         if (content == null || content.trim().isEmpty()) return;
 
         if (!isHtml(content)) {
@@ -554,24 +561,10 @@ public class HtmlToWordRenderer {
             p.setAlignment(ParagraphAlignment.BOTH);
             p.setSpacingBefore(0);
             p.setSpacingAfter(30);
-            XWPFRun r = p.createRun();
-            r.setBold(true);
-            r.setFontFamily(defaultFont);
-            r.setFontSize(defaultFontSize);
-            r.setText(prefix + normalizeDegreeNotations(content));
-            return;
-        }
 
-        Document doc = Jsoup.parse(content);
-        Element body = doc.body();
-        boolean isFirst = true;
-
-        Elements children = body.children();
-        if (children.isEmpty()) {
-            XWPFParagraph p = cell.addParagraph();
-            p.setAlignment(ParagraphAlignment.BOTH);
-            p.setSpacingBefore(0);
-            p.setSpacingAfter(30);
+            if (withTabIndent) {
+                p.createRun().addTab();
+            }
 
             if (prefix != null && !prefix.isEmpty()) {
                 XWPFRun rPrefix = p.createRun();
@@ -580,24 +573,61 @@ public class HtmlToWordRenderer {
                 rPrefix.setFontSize(defaultFontSize);
                 rPrefix.setText(prefix);
             }
-            renderInlineNodes(p, body.childNodes(), defaultFont, defaultFontSize, false, false, false, false, false);
+
+            XWPFRun r = p.createRun();
+            r.setBold(true);
+            r.setFontFamily(defaultFont);
+            r.setFontSize(defaultFontSize);
+            r.setText(normalizeDegreeNotations(content));
             return;
         }
 
-        for (Element child : children) {
+        Document doc = Jsoup.parse(content);
+        Element body = doc.body();
+
+        boolean hasBlockChildren = !body.select("p, table, ul, ol, div, h1, h2, h3, h4, h5, h6").isEmpty();
+        if (!hasBlockChildren) {
             XWPFParagraph p = cell.addParagraph();
             p.setAlignment(ParagraphAlignment.BOTH);
             p.setSpacingBefore(0);
             p.setSpacingAfter(30);
 
-            if (isFirst && prefix != null && !prefix.isEmpty()) {
+            if (withTabIndent) {
+                p.createRun().addTab();
+            }
+
+            if (prefix != null && !prefix.isEmpty()) {
                 XWPFRun rPrefix = p.createRun();
                 rPrefix.setBold(true);
                 rPrefix.setFontFamily(defaultFont);
                 rPrefix.setFontSize(defaultFontSize);
                 rPrefix.setText(prefix);
             }
-            renderInlineNodes(p, child.childNodes(), defaultFont, defaultFontSize, false, false, false, false, false);
+
+            renderInlineNodes(p, body.childNodes(), defaultFont, defaultFontSize, true, false, false, false, false);
+            return;
+        }
+
+        boolean isFirst = true;
+        for (Element child : body.children()) {
+            XWPFParagraph p = cell.addParagraph();
+            p.setAlignment(ParagraphAlignment.BOTH);
+            p.setSpacingBefore(0);
+            p.setSpacingAfter(30);
+
+            if (isFirst) {
+                if (withTabIndent) {
+                    p.createRun().addTab();
+                }
+                if (prefix != null && !prefix.isEmpty()) {
+                    XWPFRun rPrefix = p.createRun();
+                    rPrefix.setBold(true);
+                    rPrefix.setFontFamily(defaultFont);
+                    rPrefix.setFontSize(defaultFontSize);
+                    rPrefix.setText(prefix);
+                }
+            }
+            renderInlineNodes(p, child.childNodes(), defaultFont, defaultFontSize, true, false, false, false, false);
             isFirst = false;
         }
     }

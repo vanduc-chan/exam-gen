@@ -7,6 +7,8 @@ import com.example.examgenerator.entity.Subject;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.SubjectMapper;
 import com.example.examgenerator.repository.DepartmentGroupRepository;
+import com.example.examgenerator.repository.ExamRepository;
+import com.example.examgenerator.repository.QuestionRepository;
 import com.example.examgenerator.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,8 @@ public class SubjectService {
 
     private final SubjectRepository subjectRepository;
     private final DepartmentGroupRepository departmentGroupRepository;
+    private final ExamRepository examRepository;
+    private final QuestionRepository questionRepository;
     private final SubjectMapper subjectMapper;
 
     @Transactional(readOnly = true)
@@ -83,6 +87,14 @@ public class SubjectService {
     public void deleteSubject(UUID id) {
         if (!subjectRepository.existsById(id)) {
             throw new ResourceNotFoundException("Môn học không tồn tại với ID: " + id);
+        }
+        long examCount = examRepository.countBySubjectId(id);
+        if (examCount > 0) {
+            throw new IllegalArgumentException("Không thể xóa Môn học này vì đang có " + examCount + " Đợt thi / Đề thi sử dụng môn học này. Vui lòng xóa Đợt thi liên quan trước!");
+        }
+        long questionCount = questionRepository.countBySubjectId(id);
+        if (questionCount > 0) {
+            throw new IllegalArgumentException("Không thể xóa Môn học này vì đang có " + questionCount + " Câu hỏi thuộc môn học này trong ngân hàng câu hỏi. Vui lòng xóa Câu hỏi trước!");
         }
         try {
             subjectRepository.deleteById(id);

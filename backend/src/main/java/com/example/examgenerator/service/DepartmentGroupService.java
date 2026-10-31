@@ -8,6 +8,7 @@ import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.DepartmentGroupMapper;
 import com.example.examgenerator.repository.DepartmentGroupRepository;
 import com.example.examgenerator.repository.DepartmentRepository;
+import com.example.examgenerator.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class DepartmentGroupService {
 
     private final DepartmentGroupRepository departmentGroupRepository;
     private final DepartmentRepository departmentRepository;
+    private final SubjectRepository subjectRepository;
     private final DepartmentGroupMapper departmentGroupMapper;
 
     @Transactional(readOnly = true)
@@ -77,6 +79,10 @@ public class DepartmentGroupService {
     public void deleteDepartmentGroup(UUID id) {
         if (!departmentGroupRepository.existsById(id)) {
             throw new ResourceNotFoundException("Tổ bộ môn không tồn tại với ID: " + id);
+        }
+        long subjectCount = subjectRepository.countByDepartmentGroupId(id);
+        if (subjectCount > 0) {
+            throw new IllegalArgumentException("Không thể xóa Tổ bộ môn này vì đang có " + subjectCount + " Môn học trực thuộc. Vui lòng xóa hoặc chuyển Môn học trước!");
         }
         try {
             departmentGroupRepository.deleteById(id);

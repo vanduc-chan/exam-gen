@@ -37,6 +37,6 @@ public class Department extends BaseEntity {
     private Boolean isActive = true;
 
     @Builder.Default
-    @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "department")
     private List<DepartmentGroup> groups = new ArrayList<>();
 }

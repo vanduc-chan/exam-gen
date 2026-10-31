@@ -10,6 +10,7 @@ import com.example.examgenerator.enumerate.QuestionType;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.QuestionMapper;
 import com.example.examgenerator.repository.CourseRepository;
+import com.example.examgenerator.repository.ExamQuestionRepository;
 import com.example.examgenerator.repository.QuestionRepository;
 import com.example.examgenerator.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class QuestionService {
     private final QuestionRepository questionRepository;
     private final SubjectRepository subjectRepository;
     private final CourseRepository courseRepository;
+    private final ExamQuestionRepository examQuestionRepository;
     private final QuestionMapper questionMapper;
     private final QuestionSequenceService questionSequenceService;
 
@@ -99,6 +101,17 @@ public class QuestionService {
 
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại với ID: " + request.getSubjectId()));
+
+        try {
+            if (question.getSubject() != null && !question.getSubject().getId().equals(subject.getId())
+                    && examQuestionRepository.existsByQuestionId(id)) {
+                throw new IllegalArgumentException("Không thể thay đổi Môn học của câu hỏi này vì câu hỏi đã nằm trong Đề thi / Kỳ thi đã tạo!");
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception ignored) {
+            // In case old subject proxy is missing, allow reassigning valid subject
+        }
         
         questionMapper.updateEntityFromRequest(question, request, subject);
         
@@ -116,8 +129,19 @@ public class QuestionService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
+        long usedInExams = examQuestionRepository.countByQuestionIdIn(ids);
+        if (usedInExams > 0) {
+            throw new IllegalArgumentException("Không thể xóa câu hỏi vì có câu hỏi đang được sử dụng trong Đề thi / Kỳ thi đã tạo. Vui lòng xóa Đề thi liên quan trước!");
+        }
         try {
-            questionRepository.deleteAllById(ids);
+            List<Question> questionsToDelete = questionRepository.findAllById(ids);
+            for (Question q : questionsToDelete) {
+                if (q.getCourses() != null) {
+                    q.getCourses().clear();
+                }
+            }
+            questionRepository.saveAllAndFlush(questionsToDelete);
+            questionRepository.deleteAllInBatch(questionsToDelete);
             questionRepository.flush();
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw new IllegalArgumentException("Không thể xóa câu hỏi vì câu hỏi đã nằm trong đề thi/kỳ thi. Vui lòng kiểm tra lại!");
