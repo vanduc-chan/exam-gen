@@ -10,6 +10,7 @@ import com.example.examgenerator.entity.Question;
 import com.example.examgenerator.entity.Subject;
 import com.example.examgenerator.enumerate.ExamStructureType;
 import com.example.examgenerator.enumerate.QuestionType;
+import com.example.examgenerator.exception.InsufficientQuestionsException;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.ExamMapper;
 import com.example.examgenerator.repository.CourseRepository;
@@ -90,6 +91,10 @@ public class ExamGeneratorService {
 
     @Transactional
     public ExamResponse generateExam(ExamRequest request) {
+        if (request.getNumberOfExams() == null || request.getNumberOfExams() < 1) {
+            throw new IllegalArgumentException("Số lượng đề cần sinh phải lớn hơn 0");
+        }
+
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại"));
         Set<Course> courses = resolveCourses(request);
@@ -320,7 +325,15 @@ public class ExamGeneratorService {
 
     @Transactional
     public void deleteExam(UUID id) {
-        examRepository.deleteById(id);
+        if (!examRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Đợt thi không tồn tại với ID: " + id);
+        }
+        try {
+            examRepository.deleteById(id);
+            examRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Không thể xóa đợt thi này do có dữ liệu liên quan. Vui lòng kiểm tra lại!");
+        }
     }
 
     private int[] resolveQuestionCounts(ExamRequest request) {
@@ -352,16 +365,16 @@ public class ExamGeneratorService {
     private void validateQuestionCounts(int tAvailable, int pAvailable, int eAvailable, int sAvailable,
                                          int numT, int numP, int numE, int numS) {
         if (numT > 0 && tAvailable < numT) {
-            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Lý thuyết trong ngân hàng (yêu cầu %d, hiện có %d).", numT, tAvailable));
+            throw new InsufficientQuestionsException(String.format("Không đủ câu hỏi Lý thuyết trong ngân hàng (yêu cầu %d, hiện có %d).", numT, tAvailable));
         }
         if (numP > 0 && pAvailable < numP) {
-            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Thực hành trong ngân hàng (yêu cầu %d, hiện có %d).", numP, pAvailable));
+            throw new InsufficientQuestionsException(String.format("Không đủ câu hỏi Thực hành trong ngân hàng (yêu cầu %d, hiện có %d).", numP, pAvailable));
         }
         if (numE > 0 && eAvailable < numE) {
-            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Tự luận trong ngân hàng (yêu cầu %d, hiện có %d).", numE, eAvailable));
+            throw new InsufficientQuestionsException(String.format("Không đủ câu hỏi Tự luận trong ngân hàng (yêu cầu %d, hiện có %d).", numE, eAvailable));
         }
         if (numS > 0 && sAvailable < numS) {
-            throw new IllegalArgumentException(String.format("Không đủ câu hỏi Tình huống trong ngân hàng (yêu cầu %d, hiện có %d).", numS, sAvailable));
+            throw new InsufficientQuestionsException(String.format("Không đủ câu hỏi Tình huống trong ngân hàng (yêu cầu %d, hiện có %d).", numS, sAvailable));
         }
     }
 

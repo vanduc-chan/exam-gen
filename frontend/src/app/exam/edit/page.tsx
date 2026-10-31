@@ -325,7 +325,16 @@ const ExamEditPage = () => {
                   <FormItem>
                     <FormLabel>Thời gian thi <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input
+                        type="date"
+                        className="w-full cursor-pointer justify-between [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker();
+                          } catch (_) {}
+                        }}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

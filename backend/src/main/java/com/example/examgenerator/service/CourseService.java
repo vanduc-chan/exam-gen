@@ -68,7 +68,7 @@ public class CourseService {
             courseRepository.deleteById(id);
             courseRepository.flush();
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            throw new IllegalArgumentException("Không thể xóa Đối tượng thi này vì đang có Đợt sinh đề sử dụng. Vui lòng kiểm tra lại!");
+            throw new IllegalArgumentException("Không thể xóa Đối tượng thi này vì đang có Đợt sinh đề hoặc Câu hỏi sử dụng. Vui lòng kiểm tra lại!");
         }
     }
 }

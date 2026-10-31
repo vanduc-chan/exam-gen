@@ -29,7 +29,6 @@ public class DataInitializer implements CommandLineRunner {
     private final ExamGeneratorService examGeneratorService;
 
     @Override
-    @Transactional
     public void run(String... args) {
         if (departmentRepository.count() == 0 || questionRepository.count() < 10) {
             log.info("Database is empty or has minimal data. Starting comprehensive seed data initialization...");

@@ -47,6 +47,108 @@ public class HtmlToWordRenderer {
     }
 
     /**
+     * Render a question statement into an XWPFDocument with optional tab indent at the start.
+     */
+    public static void renderQuestionToDocument(XWPFDocument document, String prefix, String content, String defaultFont, int defaultFontSize, boolean withTabIndent) {
+        if (content == null) content = "";
+
+        if (!isHtml(content)) {
+            XWPFParagraph p = document.createParagraph();
+            p.setAlignment(ParagraphAlignment.BOTH);
+            p.setSpacingBefore(80);
+            p.setSpacingAfter(40);
+
+            if (withTabIndent) {
+                p.createRun().addTab();
+            }
+
+            if (prefix != null && !prefix.isEmpty()) {
+                XWPFRun rPrefix = p.createRun();
+                rPrefix.setBold(true);
+                rPrefix.setFontFamily(defaultFont);
+                rPrefix.setFontSize(defaultFontSize);
+                rPrefix.setText(prefix);
+            }
+
+            XWPFRun rText = p.createRun();
+            rText.setFontFamily(defaultFont);
+            rText.setFontSize(defaultFontSize);
+            rText.setText(normalizeDegreeNotations(content));
+            return;
+        }
+
+        Document doc = Jsoup.parse(content);
+        Element body = doc.body();
+
+        boolean hasBlockChildren = !body.select("p, table, ul, ol, div, h1, h2, h3, h4, h5, h6").isEmpty();
+        if (!hasBlockChildren) {
+            XWPFParagraph p = document.createParagraph();
+            p.setAlignment(ParagraphAlignment.BOTH);
+            p.setSpacingBefore(80);
+            p.setSpacingAfter(40);
+
+            if (withTabIndent) {
+                p.createRun().addTab();
+            }
+
+            if (prefix != null && !prefix.isEmpty()) {
+                XWPFRun rPrefix = p.createRun();
+                rPrefix.setBold(true);
+                rPrefix.setFontFamily(defaultFont);
+                rPrefix.setFontSize(defaultFontSize);
+                rPrefix.setText(prefix);
+            }
+
+            renderInlineNodes(p, body.childNodes(), defaultFont, defaultFontSize, false, false, false, false, false);
+            return;
+        }
+
+        boolean isFirst = true;
+        for (Element child : body.children()) {
+            String tag = child.tagName().toLowerCase();
+            if (tag.equals("table")) {
+                renderTable(document, child, defaultFont, defaultFontSize);
+                isFirst = false;
+                continue;
+            }
+            if (tag.equals("ul") || tag.equals("ol")) {
+                renderList(document, child, defaultFont, defaultFontSize);
+                isFirst = false;
+                continue;
+            }
+
+            XWPFParagraph p = document.createParagraph();
+            p.setAlignment(ParagraphAlignment.BOTH);
+            p.setSpacingBefore(isFirst ? 80 : 30);
+            p.setSpacingAfter(40);
+
+            String style = child.attr("style").toLowerCase();
+            if (style.contains("text-align: center") || child.attr("align").equalsIgnoreCase("center")) {
+                p.setAlignment(ParagraphAlignment.CENTER);
+            } else if (style.contains("text-align: right") || child.attr("align").equalsIgnoreCase("right")) {
+                p.setAlignment(ParagraphAlignment.RIGHT);
+            }
+
+            if (isFirst) {
+                if (withTabIndent) {
+                    p.createRun().addTab();
+                }
+                if (prefix != null && !prefix.isEmpty()) {
+                    XWPFRun rPrefix = p.createRun();
+                    rPrefix.setBold(true);
+                    rPrefix.setFontFamily(defaultFont);
+                    rPrefix.setFontSize(defaultFontSize);
+                    rPrefix.setText(prefix);
+                }
+            }
+
+            boolean isHeading = child.tagName().startsWith("h");
+            renderInlineNodes(p, child.childNodes(), defaultFont, isHeading ? defaultFontSize + 1 : defaultFontSize, isHeading, false, false, false, false);
+            isFirst = false;
+        }
+    }
+
+    /**
      * Fallback renderer for plain text with subsections and bullets.
      */
     private static void renderPlainText(XWPFDocument document, String text, String defaultFont, int defaultFontSize) {
@@ -464,7 +566,25 @@ public class HtmlToWordRenderer {
         Element body = doc.body();
         boolean isFirst = true;
 
-        for (Element child : body.children()) {
+        Elements children = body.children();
+        if (children.isEmpty()) {
+            XWPFParagraph p = cell.addParagraph();
+            p.setAlignment(ParagraphAlignment.BOTH);
+            p.setSpacingBefore(0);
+            p.setSpacingAfter(30);
+
+            if (prefix != null && !prefix.isEmpty()) {
+                XWPFRun rPrefix = p.createRun();
+                rPrefix.setBold(true);
+                rPrefix.setFontFamily(defaultFont);
+                rPrefix.setFontSize(defaultFontSize);
+                rPrefix.setText(prefix);
+            }
+            renderInlineNodes(p, body.childNodes(), defaultFont, defaultFontSize, false, false, false, false, false);
+            return;
+        }
+
+        for (Element child : children) {
             XWPFParagraph p = cell.addParagraph();
             p.setAlignment(ParagraphAlignment.BOTH);
             p.setSpacingBefore(0);

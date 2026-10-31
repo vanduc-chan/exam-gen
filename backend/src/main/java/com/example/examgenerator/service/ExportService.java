@@ -43,6 +43,9 @@ public class ExportService {
                 .orElseThrow(() -> new ResourceNotFoundException("Đợt sinh đề không tồn tại"));
 
         List<ExamDetail> details = examDetailRepository.findByExamId(examId);
+        if (details == null || details.isEmpty()) {
+            throw new IllegalArgumentException("Kỳ thi chưa có đề thi chi tiết để xuất file Word. Vui lòng sinh đề thi trước khi xuất!");
+        }
 
         try (XWPFDocument document = new XWPFDocument()) {
             if (includeAnswers) {
@@ -316,7 +319,7 @@ public class ExportService {
         rCoverFooter.setFontFamily("Times New Roman");
         rCoverFooter.setFontSize(13);
         rCoverFooter.setBold(false); // Chữ thường, KHÔNG in đậm
-        rCoverFooter.setText("Hải Phòng, tháng       năm " + currentYear);
+        rCoverFooter.setText("Hải Phòng, THÁNG       NĂM " + currentYear);
 
         // Section Break after Cover Page: Configure Section 1 (Cover) Page Borders & Margins
         XWPFParagraph pSectBreak = document.createParagraph();
@@ -721,9 +724,19 @@ public class ExportService {
             List<ExamQuestion> questions = examQuestionRepository.findByExamDetailId(detail.getId());
 
             if (dIndex > 0) {
-                XWPFParagraph pageBreakPara = document.createParagraph();
-                XWPFRun breakRun = pageBreakPara.createRun();
-                breakRun.addBreak(BreakType.PAGE);
+                // Dashed line between exam sets for cutting
+                XWPFParagraph cutPara = document.createParagraph();
+                cutPara.setAlignment(ParagraphAlignment.CENTER);
+                cutPara.setSpacingBefore(180);
+                cutPara.setSpacingAfter(180);
+                cutPara.setBorderBottom(Borders.DASHED);
+
+                XWPFRun cutRun = cutPara.createRun();
+                cutRun.setFontFamily("Times New Roman");
+                cutRun.setFontSize(10);
+                cutRun.setItalic(true);
+                cutRun.setColor("777777");
+                cutRun.setText("✂ - - - - - - - - - - - - - - - - - - (Cắt tại đây) - - - - - - - - - - - - - - - - - - ✂");
             }
 
             XWPFParagraph header = document.createParagraph();
@@ -739,20 +752,14 @@ public class ExportService {
             for (int i = 0; i < questions.size(); i++) {
                 ExamQuestion eq = questions.get(i);
                 String contentStr = eq.getQuestion().getContent();
-                if (HtmlToWordRenderer.isHtml(contentStr)) {
-                    HtmlToWordRenderer.renderToDocument(document, "<p><strong>Câu " + (i + 1) + ": </strong>" + contentStr + "</p>", "Times New Roman", 13);
-                } else {
-                    XWPFParagraph qParagraph = document.createParagraph();
-                    qParagraph.setAlignment(ParagraphAlignment.BOTH);
-                    qParagraph.setSpacingBefore(80);
-                    qParagraph.setSpacingAfter(40);
-
-                    XWPFRun qRun = qParagraph.createRun();
-                    qRun.setBold(true);
-                    qRun.setFontFamily("Times New Roman");
-                    qRun.setFontSize(13);
-                    qRun.setText("Câu " + (i + 1) + ": " + contentStr);
-                }
+                HtmlToWordRenderer.renderQuestionToDocument(
+                        document,
+                        "Câu " + (i + 1) + ": ",
+                        contentStr,
+                        "Times New Roman",
+                        13,
+                        true // withTabIndent = true (1 dấu tab lùi đầu dòng cho mỗi câu hỏi)
+                );
 
                 // "ĐÁP ÁN" Header
                 XWPFParagraph ansHeader = document.createParagraph();

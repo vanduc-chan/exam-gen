@@ -154,6 +154,14 @@ public class DepartmentService {
 
     @Transactional
     public void importDepartmentsFromExcel(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn tệp tin Excel hợp lệ");
+        }
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null && !originalFilename.toLowerCase().endsWith(".xlsx") && !originalFilename.toLowerCase().endsWith(".xls")) {
+            throw new IllegalArgumentException("Định dạng tệp không hợp lệ. Vui lòng tải lên tệp tin Excel (.xlsx hoặc .xls)");
+        }
+
         DataFormatter dataFormatter = new DataFormatter();
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -232,8 +240,10 @@ public class DepartmentService {
                             });
                 }
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi khi đọc file Excel: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Lỗi khi đọc file Excel: " + (e.getMessage() != null ? e.getMessage() : "Định dạng không hợp lệ"), e);
         }
     }
 }

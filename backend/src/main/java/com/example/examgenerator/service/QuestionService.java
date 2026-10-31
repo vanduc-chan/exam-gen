@@ -113,6 +113,9 @@ public class QuestionService {
 
     @Transactional
     public void deleteQuestions(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
         try {
             questionRepository.deleteAllById(ids);
             questionRepository.flush();
@@ -135,6 +138,17 @@ public class QuestionService {
             DifficultyLevel difficultyLevel, 
             Double score) {
         
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn tệp tin Excel hợp lệ");
+        }
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null && !originalFilename.toLowerCase().endsWith(".xlsx") && !originalFilename.toLowerCase().endsWith(".xls")) {
+            throw new IllegalArgumentException("Định dạng tệp không hợp lệ. Vui lòng tải lên tệp tin Excel (.xlsx hoặc .xls)");
+        }
+        if (subjectId == null) {
+            throw new IllegalArgumentException("Vui lòng chọn môn học cần nhập câu hỏi");
+        }
+
         Subject subject = subjectRepository.findById(subjectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Môn học không tồn tại với ID: " + subjectId));
         
@@ -197,8 +211,14 @@ public class QuestionService {
 
                 questionsToSave.add(question);
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi khi đọc file Excel: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Lỗi khi đọc file Excel: " + (e.getMessage() != null ? e.getMessage() : "Định dạng không hợp lệ"), e);
+        }
+
+        if (questionsToSave.isEmpty()) {
+            throw new IllegalArgumentException("File Excel không có dữ liệu câu hỏi hợp lệ để nhập");
         }
 
         List<Question> savedQuestions = questionRepository.saveAll(questionsToSave);
