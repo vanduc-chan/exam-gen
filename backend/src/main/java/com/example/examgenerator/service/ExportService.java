@@ -706,7 +706,7 @@ public class ExportService {
 
                 String unitAbbr = formatMilitaryUnitAbbreviation(exam.getUnit());
                 addRedItalicLine(sigLeft, "- Đơn vị: " + unitAbbr + ";");
-                addRedItalicLine(sigLeft, "- Số lượng: " + String.format("%02d bộ;", Math.max(1, details.size())));
+                addRedItalicLine(sigLeft, "- Số lượng: " + String.format("%02d bộ;", Math.max(1, exam.getNumberOfExams())));
 
                 String examDateSig;
                 if (exam.getExamDate() != null) {
