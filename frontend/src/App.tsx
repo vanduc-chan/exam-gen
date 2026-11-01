@@ -3,7 +3,7 @@ import { Toaster } from 'sonner';
 
 // Layout
 import MainLayout from '@/components/layout/MainLayout';
-// Placeholder pages
+// Pages
 import Dashboard from '@/app/dashboard/page';
 import DepartmentPage from '@/app/department/page';
 import DepartmentGroupPage from '@/app/department-group/page';
@@ -15,6 +15,9 @@ import QuestionEditPage from '@/app/question/edit/page';
 import ExamPage from '@/app/exam/page';
 import ExamGeneratePage from '@/app/exam/generate/page';
 import ExamEditPage from '@/app/exam/edit/page';
+import GraduationExamPage from '@/app/graduation-exam/page';
+import GraduationExamGeneratePage from '@/app/graduation-exam/generate/page';
+import GraduationExamEditPage from '@/app/graduation-exam/edit/page';
 import StructureMapPage from '@/app/structure-map/page';
 
 function App() {
@@ -34,7 +37,9 @@ function App() {
         <Route path="/exams" element={<MainLayout><ExamPage /></MainLayout>} />
         <Route path="/exams/generate" element={<MainLayout><ExamGeneratePage /></MainLayout>} />
         <Route path="/exams/edit/:id" element={<MainLayout><ExamEditPage /></MainLayout>} />
-        {/* We will add more routes here in subsequent phases */}
+        <Route path="/graduation-exams" element={<MainLayout><GraduationExamPage /></MainLayout>} />
+        <Route path="/graduation-exams/generate" element={<MainLayout><GraduationExamGeneratePage /></MainLayout>} />
+        <Route path="/graduation-exams/edit/:id" element={<MainLayout><GraduationExamEditPage /></MainLayout>} />
       </Routes>
     </BrowserRouter>
   );

@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Search, X } from 'lucide-react';
+import { cleanSearchParam, normalizeSearchQuery } from '@/lib/utils';
 
 interface DepartmentFilterProps {
   filters: {
@@ -20,10 +21,32 @@ const DepartmentFilter: React.FC<DepartmentFilterProps> = ({ filters, onFilterCh
   }, [filters.search]);
 
   useEffect(() => {
-    if (debouncedSearch !== (filters.search || '')) {
-      onFilterChange({ ...filters, search: debouncedSearch || undefined });
+    const cleanCurrent = cleanSearchParam(filters.search);
+    const cleanDebounced = cleanSearchParam(debouncedSearch);
+    if (cleanDebounced !== cleanCurrent) {
+      onFilterChange({ ...filters, search: cleanDebounced });
     }
   }, [debouncedSearch]);
+
+  const handleBlur = () => {
+    const normalized = normalizeSearchQuery(searchTerm);
+    if (normalized !== searchTerm) {
+      setSearchTerm(normalized);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const normalized = normalizeSearchQuery(searchTerm);
+      if (normalized !== searchTerm) {
+        setSearchTerm(normalized);
+      }
+      const clean = cleanSearchParam(searchTerm);
+      if (clean !== cleanSearchParam(filters.search)) {
+        onFilterChange({ ...filters, search: clean });
+      }
+    }
+  };
 
   const handleClear = () => {
     setSearchTerm('');
@@ -40,6 +63,8 @@ const DepartmentFilter: React.FC<DepartmentFilterProps> = ({ filters, onFilterCh
           placeholder="Tìm kiếm mã hoặc tên khoa..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className="pl-9 w-full"
         />
       </div>

@@ -26,7 +26,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
            "(:subjectId IS NULL OR q.subject.id = :subjectId) AND " +
            "(:courseIds IS NULL OR c.id IN :courseIds) AND " +
            "(:type IS NULL OR q.type = :type) AND " +
-           "(LOWER(q.content) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(q.code) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "(:search IS NULL OR :search = '' OR LOWER(q.content) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(q.code) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Question> findQuestionsWithFilters(
             @Param("subjectId") UUID subjectId,
             @Param("courseIds") java.util.List<UUID> courseIds,

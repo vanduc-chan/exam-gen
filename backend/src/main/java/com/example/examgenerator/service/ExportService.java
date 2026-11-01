@@ -10,6 +10,11 @@ import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.repository.ExamDetailRepository;
 import com.example.examgenerator.repository.ExamQuestionRepository;
 import com.example.examgenerator.repository.ExamRepository;
+import com.example.examgenerator.repository.SubjectRepository;
+import com.example.examgenerator.entity.Subject;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import com.example.examgenerator.util.HtmlToWordRenderer;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.xwpf.usermodel.*;
@@ -26,13 +31,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ExportService {
@@ -40,6 +50,8 @@ public class ExportService {
     private final ExamRepository examRepository;
     private final ExamDetailRepository examDetailRepository;
     private final ExamQuestionRepository examQuestionRepository;
+    private final SubjectRepository subjectRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public byte[] exportQuestionsZip(UUID examId) throws IOException {
@@ -132,15 +144,161 @@ public class ExportService {
      * - Section 2: Exam pages with 10mm margins on all sides.
      * - Exam distribution: max 4 exams per page, ensuring at least 1 exam is on the last page with signatures.
      */
+    private List<ExamQuestion> getSortedQuestions(UUID detailId) {
+        List<ExamQuestion> list = examQuestionRepository.findByExamDetailIdOrderByQuestionOrderAsc(detailId);
+        if (list == null) {
+            return Collections.emptyList();
+        }
+        List<ExamQuestion> sorted = new ArrayList<>(list);
+        sorted.sort(Comparator.comparingInt(ExamQuestion::getQuestionOrder));
+        return sorted;
+    }
+
+    private String resolveSubjectNameForCover(Exam exam, List<ExamDetail> details) {
+        Set<String> distinctSubjects = new LinkedHashSet<>();
+        if (details != null && !details.isEmpty()) {
+            List<ExamQuestion> sampleQuestions = getSortedQuestions(details.get(0).getId());
+            for (ExamQuestion eq : sampleQuestions) {
+                try {
+                    if (eq.getQuestion() != null && eq.getQuestion().getSubject() != null
+                            && eq.getQuestion().getSubject().getSubjectName() != null) {
+                        distinctSubjects.add(eq.getQuestion().getSubject().getSubjectName().trim());
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        if (distinctSubjects.size() > 1) {
+            return String.join(", ", distinctSubjects);
+        }
+        if (exam.getSubject() != null && exam.getSubject().getSubjectName() != null) {
+            return exam.getSubject().getSubjectName();
+        }
+        if (!distinctSubjects.isEmpty()) {
+            return distinctSubjects.iterator().next();
+        }
+        return "Kỹ thuật Công binh";
+    }
+
+    Subject resolveFirstSubject(Exam exam, List<ExamDetail> details) {
+        // 1. For graduation exams, try to extract the subject of the first section from blueprint snapshot
+        if ("GRADUATION".equalsIgnoreCase(exam.getExamType()) && exam.getBlueprintSnapshot() != null
+                && !exam.getBlueprintSnapshot().trim().isEmpty()) {
+            UUID firstSectionSubjectId = extractFirstSubjectIdFromBlueprint(exam.getBlueprintSnapshot());
+            if (firstSectionSubjectId != null) {
+                Optional<Subject> subOpt = subjectRepository.findById(firstSectionSubjectId);
+                if (subOpt.isPresent()) {
+                    return subOpt.get();
+                }
+            }
+        }
+
+        // 2. Try from the first question of the exam details (sorted by questionOrder)
+        if (details != null && !details.isEmpty()) {
+            List<ExamQuestion> sampleQuestions = getSortedQuestions(details.get(0).getId());
+            for (ExamQuestion eq : sampleQuestions) {
+                try {
+                    if (eq.getQuestion() != null && eq.getQuestion().getSubject() != null) {
+                        return eq.getQuestion().getSubject();
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // 3. Fallback to exam.getSubject()
+        if (exam.getSubject() != null) {
+            return exam.getSubject();
+        }
+
+        return null;
+    }
+
+    private UUID extractFirstSubjectIdFromBlueprint(String snapshot) {
+        if (snapshot == null || snapshot.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            List<Map<String, Object>> sections = objectMapper.readValue(
+                    snapshot,
+                    new TypeReference<List<Map<String, Object>>>() {}
+            );
+            if (sections != null && !sections.isEmpty()) {
+                sections.sort((a, b) -> {
+                    int o1 = a.get("sectionOrder") instanceof Number ? ((Number) a.get("sectionOrder")).intValue() : 0;
+                    int o2 = b.get("sectionOrder") instanceof Number ? ((Number) b.get("sectionOrder")).intValue() : 0;
+                    return Integer.compare(o1, o2);
+                });
+                for (Map<String, Object> sec : sections) {
+                    Object sId = sec.get("subjectId");
+                    if (sId != null && !sId.toString().trim().isEmpty()) {
+                        return UUID.fromString(sId.toString().trim());
+                    }
+                    if (sec.get("slots") instanceof List) {
+                        List<?> slots = (List<?>) sec.get("slots");
+                        for (Object sl : slots) {
+                            if (sl instanceof Map) {
+                                Object slotSubId = ((Map<?, ?>) sl).get("subjectId");
+                                if (slotSubId != null && !slotSubId.toString().trim().isEmpty()) {
+                                    return UUID.fromString(slotSubId.toString().trim());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not extract first subject from blueprint snapshot: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    String resolveDepartmentNameForCover(Exam exam, List<ExamDetail> details) {
+        Subject firstSubject = resolveFirstSubject(exam, details);
+        if (firstSubject != null && firstSubject.getId() != null) {
+            Optional<Subject> fullSubOpt = subjectRepository.findByIdWithDepartment(firstSubject.getId());
+            if (fullSubOpt.isPresent()) {
+                Subject s = fullSubOpt.get();
+                if (s.getDepartmentGroup() != null && s.getDepartmentGroup().getDepartment() != null
+                        && s.getDepartmentGroup().getDepartment().getName() != null) {
+                    return formatDepartmentName(s.getDepartmentGroup().getDepartment().getName());
+                }
+            }
+        }
+
+        if (exam.getSubject() != null && exam.getSubject().getId() != null) {
+            Optional<Subject> subOpt = subjectRepository.findByIdWithDepartment(exam.getSubject().getId());
+            if (subOpt.isPresent()) {
+                Subject s = subOpt.get();
+                if (s.getDepartmentGroup() != null && s.getDepartmentGroup().getDepartment() != null
+                        && s.getDepartmentGroup().getDepartment().getName() != null) {
+                    return formatDepartmentName(s.getDepartmentGroup().getDepartment().getName());
+                }
+            }
+        }
+
+        return "KHOA BINH CHỦNG";
+    }
+
+    String formatDepartmentName(String rawName) {
+        if (rawName == null || rawName.trim().isEmpty()) {
+            return "KHOA BINH CHỦNG";
+        }
+        String upper = rawName.trim().toUpperCase();
+        if (upper.startsWith("KHOA KHOA HỌC")) {
+            return upper;
+        }
+        if (upper.startsWith("KHOA HỌC")) {
+            return "KHOA " + upper;
+        }
+        if (upper.startsWith("KHOA ")) {
+            return upper;
+        }
+        return "KHOA " + upper;
+    }
+
     private void createCoverPage(XWPFDocument document, Exam exam, List<ExamDetail> details, boolean isAnswer, int batchNumber) {
         int currentYear = LocalDate.now().getYear();
 
-        String deptName = "KHOA BINH CHỦNG";
-        if (exam.getSubject() != null && exam.getSubject().getDepartmentGroup() != null
-                && exam.getSubject().getDepartmentGroup().getDepartment() != null
-                && exam.getSubject().getDepartmentGroup().getDepartment().getName() != null) {
-            deptName = exam.getSubject().getDepartmentGroup().getDepartment().getName().toUpperCase();
-        }
+        String deptName = resolveDepartmentNameForCover(exam, details);
 
         String courseName = "Đào tạo Tiểu đội trưởng Công binh";
         if (exam.getCourses() != null && !exam.getCourses().isEmpty()) {
@@ -152,15 +310,8 @@ public class ExportService {
             courseName = exam.getCourse().getName();
         }
 
-        String subjectName = "Kỹ thuật Công binh";
-        if (exam.getSubject() != null && exam.getSubject().getSubjectName() != null) {
-            subjectName = exam.getSubject().getSubjectName();
-        }
+        String subjectName = resolveSubjectNameForCover(exam, details);
 
-        String academicYear = String.valueOf(currentYear);
-        if (exam.getAcademicYear() != null && !exam.getAcademicYear().trim().isEmpty()) {
-            academicYear = exam.getAcademicYear().trim();
-        }
 
         String rawTitle = (exam.getTitle() != null && !exam.getTitle().trim().isEmpty())
                 ? exam.getTitle().toUpperCase()
@@ -205,7 +356,7 @@ public class ExportService {
 
         // Left cell: 4150 dxa (~73.2 mm)
         XWPFTableCell cLeft = headTable.getRow(0).getCell(0);
-        cLeft.setWidth("4150");
+        cLeft.setWidth("4246");
         setCellZeroMargins(cLeft);
 
         XWPFParagraph p1 = cLeft.getParagraphArray(0);
@@ -431,7 +582,7 @@ public class ExportService {
 
         // Inspect questions of first detail
         List<ExamQuestion> sampleQuestions = (details != null && !details.isEmpty())
-                ? examQuestionRepository.findByExamDetailId(details.get(0).getId())
+                ? getSortedQuestions(details.get(0).getId())
                 : Collections.emptyList();
 
         int qCount = Math.max(1, sampleQuestions.size());
@@ -578,8 +729,27 @@ public class ExportService {
         // ==========================================
         // 2. EXAM PAGES (TRANG ĐỀ THI)
         // ==========================================
-        // Distribution of exams: 4 exams per page, ensuring at least 1 exam is on the last page with signatures
-        List<Integer> distribution = calculatePageDistribution(details.size());
+        Map<UUID, List<ExamQuestion>> questionsMap = new HashMap<>();
+        for (ExamDetail d : details) {
+            questionsMap.put(d.getId(), getSortedQuestions(d.getId()));
+        }
+
+        // Responsive distribution of exams: 4, 3, or 2 exams per page depending on question count & length,
+        // ensuring at least 1 exam is on the last page with signatures.
+        int maxPerPage = determineMaxExamsPerPage(details, questionsMap);
+        List<Integer> distribution = calculatePageDistribution(details.size(), maxPerPage);
+
+        // Find the maximum estimated question lines across all exams in this batch
+        // to set a uniform border frame height across all exams for straight, clean cutting lines
+        int maxLinesInBatch = 0;
+        for (ExamDetail d : details) {
+            List<ExamQuestion> qs = questionsMap.getOrDefault(d.getId(), Collections.emptyList());
+            int lines = estimateExamLines(qs);
+            if (lines > maxLinesInBatch) {
+                maxLinesInBatch = lines;
+            }
+        }
+        long uniformBoxHeightDxa = calculateUniformExamBoxHeight(maxPerPage, maxLinesInBatch);
 
         int currentDetailIdx = 0;
         for (int pageIdx = 0; pageIdx < distribution.size(); pageIdx++) {
@@ -595,7 +765,7 @@ public class ExportService {
             for (int eNum = 0; eNum < countInPage; eNum++) {
                 if (currentDetailIdx >= details.size()) break;
                 ExamDetail detail = details.get(currentDetailIdx);
-                List<ExamQuestion> questions = examQuestionRepository.findByExamDetailId(detail.getId());
+                List<ExamQuestion> questions = questionsMap.getOrDefault(detail.getId(), Collections.emptyList());
 
                 // Exam Box with Double Border: 100% full width, identical height across all frames
                 XWPFTable examTable = document.createTable(1, 1);
@@ -608,10 +778,10 @@ public class ExportService {
                 tblWEx.setType(STTblWidth.DXA);
                 tblWEx.setW(BigInteger.valueOf(10772)); // 190mm (full printable width on 10mm margins)
 
-                // Minimum height for uniform 4 frames per page (3100 dxa ~ 55mm)
+                // Uniform height across all exam frames based on the longest exam in the batch
                 CTTrPr trPrEx = examTable.getRow(0).getCtRow().getTrPr() != null ? examTable.getRow(0).getCtRow().getTrPr() : examTable.getRow(0).getCtRow().addNewTrPr();
                 CTHeight hEx = trPrEx.addNewTrHeight();
-                hEx.setVal(BigInteger.valueOf(3100));
+                hEx.setVal(BigInteger.valueOf(uniformBoxHeightDxa));
                 hEx.setHRule(STHeightRule.AT_LEAST);
 
                 examTable.setTopBorder(XWPFTable.XWPFBorderType.DOUBLE, 12, 0, "000000");
@@ -799,7 +969,7 @@ public class ExportService {
         // 3. Answer Content for each Exam Set
         for (int dIndex = 0; dIndex < details.size(); dIndex++) {
             ExamDetail detail = details.get(dIndex);
-            List<ExamQuestion> questions = examQuestionRepository.findByExamDetailId(detail.getId());
+            List<ExamQuestion> questions = getSortedQuestions(detail.getId());
 
             if (dIndex > 0) {
                 // Xuống dòng cách 1 khoảng giữa các đề ở file đáp án
@@ -857,10 +1027,10 @@ public class ExportService {
         szAns.setH(BigInteger.valueOf(16838));
 
         CTPageMar marAns = bodySectPr.addNewPgMar();
-        marAns.setTop(BigInteger.valueOf(567));    // 10mm
-        marAns.setBottom(BigInteger.valueOf(567)); // 10mm
-        marAns.setLeft(BigInteger.valueOf(567));   // 10mm
-        marAns.setRight(BigInteger.valueOf(567));  // 10mm
+        marAns.setTop(BigInteger.valueOf(1417));    // 25mm
+        marAns.setBottom(BigInteger.valueOf(1134)); // 20mm
+        marAns.setLeft(BigInteger.valueOf(1417));   // 25mm
+        marAns.setRight(BigInteger.valueOf(850));   // 15mm
 
         CTPageBorders pgBordersAns = bodySectPr.addNewPgBorders();
         pgBordersAns.setOffsetFrom(STPageBorderOffset.TEXT);
@@ -871,36 +1041,149 @@ public class ExportService {
     }
 
     /**
-     * Calculate distribution of exams across pages:
-     * - Max 4 exams per page without signatures.
-     * - The final page with signatures MUST have at least 1 exam, and at most 3 exams.
-     * - Example: 12 exams -> [4, 4, 3, 1] (4 pages, page 3 has 3, page 4 has 1 + signatures).
+     * Estimate the number of visual text lines for an exam's questions on a 190mm wide cell (13pt bold font).
+     */
+    public int estimateExamLines(List<ExamQuestion> questions) {
+        if (questions == null || questions.isEmpty()) {
+            return 1;
+        }
+        double totalLines = 0.0;
+        for (ExamQuestion eq : questions) {
+            String rawHtml = (eq.getQuestion() != null && eq.getQuestion().getContent() != null)
+                    ? eq.getQuestion().getContent()
+                    : "";
+            String normalized = rawHtml
+                    .replaceAll("(?i)<br\s*/?>", "\n")
+                    .replaceAll("(?i)</(p|div|li|tr)>", "\n")
+                    .replaceAll("<[^>]+>", "")
+                    .replace("&nbsp;", " ")
+                    .replace("&amp;", "&")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .trim();
+            if (normalized.isEmpty()) {
+                totalLines += 1.0;
+                continue;
+            }
+            String[] paragraphs = normalized.split("\r?\n");
+            int nonEmptyCount = 0;
+            for (int idx = 0; idx < paragraphs.length; idx++) {
+                String p = paragraphs[idx].trim();
+                if (p.isEmpty()) continue;
+                nonEmptyCount++;
+                // First paragraph of a question includes "Câu X: " + 1 tab indent (~12 chars)
+                int effectiveChars = p.length() + (nonEmptyCount == 1 ? 12 : 4);
+                int wrappedLines = Math.max(1, (int) Math.ceil(effectiveChars / 75.0));
+                totalLines += wrappedLines;
+            }
+            if (nonEmptyCount == 0) {
+                totalLines += 1.0;
+            }
+            // Account for paragraph spacing before/after each question
+            totalLines += 0.35;
+        }
+        return (int) Math.ceil(totalLines);
+    }
+
+    /**
+     * Dynamically determine the maximum number of exams per page (4, 3, or 2)
+     * so that exams never overflow the page and trigger an unintended double page break.
+     */
+    public int determineMaxExamsPerPage(List<ExamDetail> details, Map<UUID, List<ExamQuestion>> questionsMap) {
+        if (details == null || details.isEmpty()) {
+            return 4;
+        }
+        int maxQuestionCount = 0;
+        int maxEstimatedLines = 0;
+
+        for (ExamDetail detail : details) {
+            List<ExamQuestion> qs = questionsMap != null
+                    ? questionsMap.getOrDefault(detail.getId(), Collections.emptyList())
+                    : getSortedQuestions(detail.getId());
+            if (qs.size() > maxQuestionCount) {
+                maxQuestionCount = qs.size();
+            }
+            int lines = estimateExamLines(qs);
+            if (lines > maxEstimatedLines) {
+                maxEstimatedLines = lines;
+            }
+        }
+
+        // If an exam has >= 5 questions or > 11 visual lines of question text -> 2 exams per page
+        if (maxQuestionCount >= 5 || maxEstimatedLines > 11) {
+            return 2;
+        }
+        // If an exam has 3-4 questions or > 6 visual lines of question text -> 3 exams per page
+        if (maxQuestionCount >= 3 || maxEstimatedLines > 6) {
+            return 3;
+        }
+        // Standard short 1-2 question exams (<= 6 visual lines) -> 4 exams per page
+        return 4;
+    }
+
+    /**
+     * Calculate a consistent, uniform border box height across all exams in the batch
+     * based on the longest exam frame (so all exam slips align perfectly for easy cutting).
+     */
+    public long calculateUniformExamBoxHeight(int maxPerPage, int maxLinesInBatch) {
+        // Base minimum heights for aesthetic layout
+        long baseMin = (maxPerPage == 4) ? 3100L : (maxPerPage == 3 ? 3400L : 4200L);
+
+        // Header (ĐỀ SỐ XX) + margins ~ 650 dxa; each visual line of 13pt bold text ~ 270 dxa
+        long contentHeight = 650L + (long) maxLinesInBatch * 270L;
+        long uniformHeight = Math.max(baseMin, contentHeight);
+
+        // Maximum safe height per exam box to prevent exceeding printable page height (15704 dxa)
+        // Leaving 200 dxa per cut line/spacer between exams + 100 dxa safety buffer
+        long maxSafeHeight = (15704L - (long) (maxPerPage - 1) * 200L - 100L) / (long) maxPerPage;
+
+        return Math.min(uniformHeight, maxSafeHeight);
+    }
+
+    /**
+     * Calculate distribution of exams across pages (defaulting to 4 exams per page).
      */
     public List<Integer> calculatePageDistribution(int totalExams) {
+        return calculatePageDistribution(totalExams, 4);
+    }
+
+    /**
+     * Calculate responsive distribution of exams across pages:
+     * - Max `maxPerPage` (4, 3, or 2) exams per page without signatures.
+     * - The final page with signatures MUST have at least 1 exam, and at most `maxPerPage - 1` exams.
+     * - Examples:
+     *   - maxPerPage = 4, totalExams = 12 -> [4, 4, 3, 1]
+     *   - maxPerPage = 3, totalExams = 12 -> [3, 3, 3, 2, 1]
+     *   - maxPerPage = 3, totalExams = 20 -> [3, 3, 3, 3, 3, 3, 2]
+     *   - maxPerPage = 2, totalExams = 6  -> [2, 2, 1, 1]
+     */
+    public List<Integer> calculatePageDistribution(int totalExams, int maxPerPage) {
         List<Integer> pages = new ArrayList<>();
         if (totalExams <= 0) {
             return pages;
         }
-        if (totalExams <= 3) {
+        int safeMax = Math.max(2, Math.min(4, maxPerPage));
+        int maxLastPage = Math.max(1, safeMax - 1);
+
+        if (totalExams <= maxLastPage) {
             pages.add(totalExams);
             return pages;
         }
 
-        int fullPages = totalExams / 4;
-        int rem = totalExams % 4;
+        int fullPages = totalExams / safeMax;
+        int rem = totalExams % safeMax;
 
         if (rem == 0) {
-            // e.g. 12 -> 3 full pages of 4. But last page would have 0 exams + sig!
-            // Move 1 exam to last page so page 3 has 3, page 4 has 1 + sig!
+            // Move 1 exam from the previous page to the last page so the last page has 1 exam + signatures
             for (int i = 0; i < fullPages - 1; i++) {
-                pages.add(4);
+                pages.add(safeMax);
             }
-            pages.add(3);
+            pages.add(maxLastPage);
             pages.add(1);
         } else {
-            // e.g. 5 -> [4, 1]; 6 -> [4, 2]; 7 -> [4, 3]
+            // rem is guaranteed to be between 1 and maxLastPage (inclusive)
             for (int i = 0; i < fullPages; i++) {
-                pages.add(4);
+                pages.add(safeMax);
             }
             pages.add(rem);
         }

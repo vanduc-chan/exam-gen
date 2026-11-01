@@ -10,6 +10,7 @@ import java.util.UUID;
 @Repository
 public interface ExamQuestionRepository extends JpaRepository<ExamQuestion, UUID> {
     List<ExamQuestion> findByExamDetailId(UUID examDetailId);
+    List<ExamQuestion> findByExamDetailIdOrderByQuestionOrderAsc(UUID examDetailId);
     void deleteByExamDetailId(UUID examDetailId);
     boolean existsByQuestionId(UUID questionId);
     boolean existsByQuestionIdIn(List<UUID> questionIds);

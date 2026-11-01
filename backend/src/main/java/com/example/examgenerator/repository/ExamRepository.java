@@ -14,11 +14,21 @@ import java.util.UUID;
 public interface ExamRepository extends JpaRepository<Exam, UUID> {
     
     @Query("SELECT DISTINCT e FROM Exam e LEFT JOIN e.courses c WHERE " +
+           "(e.examType IS NULL OR e.examType = 'SUBJECT') AND " +
            "(:subjectId IS NULL OR e.subject.id = :subjectId) AND " +
            "(:courseId IS NULL OR e.course.id = :courseId OR c.id = :courseId) AND " +
-           "(LOWER(e.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(e.code) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "(:search IS NULL OR :search = '' OR LOWER(e.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(e.code) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Exam> findExamsWithFilters(
             @Param("subjectId") UUID subjectId,
+            @Param("courseId") UUID courseId,
+            @Param("search") String search,
+            Pageable pageable);
+
+    @Query("SELECT DISTINCT e FROM Exam e LEFT JOIN e.courses c WHERE " +
+           "e.examType = 'GRADUATION' AND " +
+           "(:courseId IS NULL OR e.course.id = :courseId OR c.id = :courseId) AND " +
+           "(:search IS NULL OR :search = '' OR LOWER(e.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(e.code) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Exam> findGraduationExamsWithFilters(
             @Param("courseId") UUID courseId,
             @Param("search") String search,
             Pageable pageable);

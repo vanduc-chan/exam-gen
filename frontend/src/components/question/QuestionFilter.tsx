@@ -14,6 +14,7 @@ import { QuestionType } from '@/types/question';
 import { useDebounce } from '@/hooks/useDebounce';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { cleanSearchParam, normalizeSearchQuery } from '@/lib/utils';
 
 interface QuestionFilterProps {
   subjects: Subject[];
@@ -36,10 +37,32 @@ const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, courses, onFi
   }, [filters.search]);
 
   useEffect(() => {
-    if (debouncedSearch !== (filters.search || '')) {
-      onFilterChange({ ...filters, search: debouncedSearch || undefined });
+    const cleanCurrent = cleanSearchParam(filters.search);
+    const cleanDebounced = cleanSearchParam(debouncedSearch);
+    if (cleanDebounced !== cleanCurrent) {
+      onFilterChange({ ...filters, search: cleanDebounced });
     }
   }, [debouncedSearch]);
+
+  const handleBlur = () => {
+    const normalized = normalizeSearchQuery(searchTerm);
+    if (normalized !== searchTerm) {
+      setSearchTerm(normalized);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const normalized = normalizeSearchQuery(searchTerm);
+      if (normalized !== searchTerm) {
+        setSearchTerm(normalized);
+      }
+      const clean = cleanSearchParam(searchTerm);
+      if (clean !== cleanSearchParam(filters.search)) {
+        onFilterChange({ ...filters, search: clean });
+      }
+    }
+  };
 
   const handleClear = () => {
     setSearchTerm('');
@@ -63,6 +86,8 @@ const QuestionFilter: React.FC<QuestionFilterProps> = ({ subjects, courses, onFi
           placeholder="Tìm kiếm mã hoặc nội dung..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className="h-10"
         />
       </div>

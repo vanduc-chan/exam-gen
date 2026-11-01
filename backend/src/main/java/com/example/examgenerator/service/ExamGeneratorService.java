@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import com.example.examgenerator.util.SearchUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +52,7 @@ public class ExamGeneratorService {
 
     @Transactional(readOnly = true)
     public Page<ExamResponse> getExams(UUID subjectId, UUID courseId, String search, Pageable pageable) {
-        String safeSearch = (search == null) ? "" : search;
+        String safeSearch = SearchUtils.normalizeSearch(search);
         return examRepository.findExamsWithFilters(subjectId, courseId, safeSearch, pageable)
                 .map(examMapper::toResponse);
     }

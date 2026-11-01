@@ -34,6 +34,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
+import com.example.examgenerator.util.SearchUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -48,7 +49,7 @@ public class QuestionService {
 
     @Transactional(readOnly = true)
     public Page<QuestionResponse> getQuestions(UUID subjectId, List<UUID> courseIds, QuestionType type, String search, Pageable pageable) {
-        String safeSearch = (search == null) ? "" : search;
+        String safeSearch = SearchUtils.normalizeSearch(search);
         if (courseIds != null && courseIds.isEmpty()) {
             courseIds = null;
         }

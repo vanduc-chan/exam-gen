@@ -1,3 +1,5 @@
+import { BlueprintSection } from './graduationExam';
+
 export enum ExamStructureType {
   THEORY_PRACTICE = 'THEORY_PRACTICE',
   ESSAY = 'ESSAY',
@@ -15,8 +17,11 @@ export interface Exam {
   id: string;
   code: string;
   title: string;
+  examType?: string;
+  blueprintId?: string;
   subjectId: string;
   subjectName: string;
+  subjectNames?: string[];
   courseId?: string;
   courseName?: string;
   courseIds?: string[];
@@ -34,6 +39,7 @@ export interface Exam {
   numberOfSituations?: number;
   numberOfExams: number; // Số lượng bộ đề
   examsPerBatch?: number; // Số đề nhỏ trong mỗi bộ
+  sections?: BlueprintSection[];
   status: ExamStatus;
   createdAt: string;
   updatedAt: string;

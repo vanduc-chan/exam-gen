@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPagination } from '@/components/ui/app-pagination';
+import { cleanSearchParam, normalizeSearchQuery } from '@/lib/utils';
 
 const DepartmentGroupPage = () => {
   const [groups, setGroups] = useState<DepartmentGroup[]>([]);
@@ -21,7 +22,7 @@ const DepartmentGroupPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const searchParam = searchParams.get('search') || '';
+  const searchParam = cleanSearchParam(searchParams.get('search')) || '';
   const departmentIdParam = searchParams.get('departmentId') || '';
   const pageParam = searchParams.get('page');
   const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
@@ -29,14 +30,14 @@ const DepartmentGroupPage = () => {
   const pageSize = 10;
 
   const filteredGroups = useMemo(() => {
+    const q = normalizeSearchQuery(searchParam).toLowerCase();
     return groups.filter(g => {
       // Filter by departmentId
       if (departmentIdParam && g.departmentId !== departmentIdParam) {
         return false;
       }
       // Filter by search
-      if (searchParam.trim()) {
-        const q = searchParam.toLowerCase().trim();
+      if (q) {
         const matchesName = g.name && g.name.toLowerCase().includes(q);
         const matchesCode = g.code && g.code.toLowerCase().includes(q);
         const matchesDept = g.departmentName && g.departmentName.toLowerCase().includes(q);
@@ -61,8 +62,9 @@ const DepartmentGroupPage = () => {
   const handleFilterChange = (newFilters: { search?: string; departmentId?: string }) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      if (newFilters.search) {
-        next.set('search', newFilters.search);
+      const cleanSearch = cleanSearchParam(newFilters.search);
+      if (cleanSearch) {
+        next.set('search', cleanSearch);
       } else {
         next.delete('search');
       }

@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPagination } from '@/components/ui/app-pagination';
+import { cleanSearchParam } from '@/lib/utils';
 
 const ExamPage = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const ExamPage = () => {
   const page = currentPage - 1;
 
   // Read all filter params from URL
-  const searchParam = searchParams.get('search') || '';
+  const searchParam = cleanSearchParam(searchParams.get('search')) || '';
   const subjectIdParam = searchParams.get('subjectId') || undefined;
   const courseIdParam = searchParams.get('courseId') || undefined;
 
@@ -51,7 +52,8 @@ const ExamPage = () => {
       // Page (1-based)
       next.set('page', (newPage + 1).toString());
       // Filter values
-      if (newFilters.search) next.set('search', newFilters.search);
+      const cleanSearch = cleanSearchParam(newFilters.search);
+      if (cleanSearch) next.set('search', cleanSearch);
       if (newFilters.subjectId) next.set('subjectId', newFilters.subjectId);
       if (newFilters.courseId) next.set('courseId', newFilters.courseId);
       return next;

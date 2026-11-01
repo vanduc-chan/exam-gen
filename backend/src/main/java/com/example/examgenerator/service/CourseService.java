@@ -6,6 +6,7 @@ import com.example.examgenerator.entity.Course;
 import com.example.examgenerator.exception.ResourceNotFoundException;
 import com.example.examgenerator.mapper.CourseMapper;
 import com.example.examgenerator.repository.CourseRepository;
+import com.example.examgenerator.repository.ExamBlueprintRepository;
 import com.example.examgenerator.repository.ExamRepository;
 import com.example.examgenerator.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class CourseService {
 
     private final CourseRepository courseRepository;
     private final ExamRepository examRepository;
+    private final ExamBlueprintRepository examBlueprintRepository;
     private final QuestionRepository questionRepository;
     private final CourseMapper courseMapper;
 
@@ -71,6 +73,10 @@ public class CourseService {
         long examCount = examRepository.countByCourseId(id);
         if (examCount > 0) {
             throw new IllegalArgumentException("Không thể xóa Đối tượng dự thi này vì đang có " + examCount + " Đợt sinh đề sử dụng đối tượng này. Vui lòng xóa hoặc cập nhật Đợt sinh đề liên quan trước!");
+        }
+        long blueprintCount = examBlueprintRepository.countByCourseId(id);
+        if (blueprintCount > 0) {
+            throw new IllegalArgumentException("Không thể xóa Đối tượng dự thi này vì đang có " + blueprintCount + " Khung đề tốt nghiệp mẫu sử dụng đối tượng này. Vui lòng xóa hoặc cập nhật Khung đề mẫu liên quan trước!");
         }
         long questionCount = questionRepository.countByCourseId(id);
         if (questionCount > 0) {

@@ -1,21 +1,28 @@
 package com.example.examgenerator.mapper;
 
+import com.example.examgenerator.dto.request.BlueprintSectionDto;
+import com.example.examgenerator.dto.request.BlueprintSlotDto;
 import com.example.examgenerator.dto.request.ExamRequest;
 import com.example.examgenerator.dto.response.ExamResponse;
 import com.example.examgenerator.entity.Course;
 import com.example.examgenerator.entity.Exam;
 import com.example.examgenerator.entity.Subject;
 import com.example.examgenerator.enumerate.ExamStatus;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 @Component
 public class ExamMapper {
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Exam toEntity(ExamRequest request, Subject subject, Course course) {
         Set<Course> courses = course != null ? Collections.singleton(course) : Collections.emptySet();
@@ -49,6 +56,7 @@ public class ExamMapper {
 
         return Exam.builder()
                 .title(request.getTitle())
+                .examType("SUBJECT")
                 .subject(subject)
                 .course(primaryCourse)
                 .courses(courses != null ? courses : Collections.emptySet())
@@ -105,6 +113,37 @@ public class ExamMapper {
             }
         } catch (Exception ignored) {}
 
+        List<BlueprintSectionDto> sections = null;
+        Set<String> distinctSubjectNames = new LinkedHashSet<>();
+        if (entity.getBlueprintSnapshot() != null && !entity.getBlueprintSnapshot().trim().isEmpty()) {
+            try {
+                sections = objectMapper.readValue(
+                        entity.getBlueprintSnapshot(),
+                        new TypeReference<List<BlueprintSectionDto>>() {}
+                );
+                if (sections != null) {
+                    for (BlueprintSectionDto sec : sections) {
+                        if (sec.getSubjectName() != null && !sec.getSubjectName().isBlank()) {
+                            distinctSubjectNames.add(sec.getSubjectName().trim());
+                        }
+                        if (sec.getSlots() != null) {
+                            for (BlueprintSlotDto slot : sec.getSlots()) {
+                                if (slot.getSubjectName() != null && !slot.getSubjectName().isBlank()) {
+                                    distinctSubjectNames.add(slot.getSubjectName().trim());
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        if (distinctSubjectNames.isEmpty() && subjectName != null) {
+            distinctSubjectNames.add(subjectName);
+        }
+        if ("GRADUATION".equalsIgnoreCase(entity.getExamType()) && !distinctSubjectNames.isEmpty()) {
+            subjectName = String.join(", ", distinctSubjectNames);
+        }
+
         int examsPerBatch = 0;
         try {
             if (entity.getExamDetails() != null && !entity.getExamDetails().isEmpty()) {
@@ -120,8 +159,11 @@ public class ExamMapper {
                 .id(entity.getId())
                 .code(entity.getCode())
                 .title(entity.getTitle())
+                .examType(entity.getExamType() != null ? entity.getExamType() : "SUBJECT")
+                .blueprintId(entity.getBlueprintId())
                 .subjectId(subjectId)
                 .subjectName(subjectName)
+                .subjectNames(new ArrayList<>(distinctSubjectNames))
                 .courseId(primaryCourseId)
                 .courseName(formattedCourseName)
                 .courseIds(courseIds)
@@ -139,6 +181,7 @@ public class ExamMapper {
                 .numberOfSituations(entity.getNumberOfSituations())
                 .numberOfExams(entity.getNumberOfExams())
                 .examsPerBatch(examsPerBatch)
+                .sections(sections)
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

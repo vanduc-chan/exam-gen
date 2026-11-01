@@ -16,4 +16,7 @@ public interface SubjectRepository extends JpaRepository<Subject, UUID> {
     long countByDepartmentGroupId(UUID departmentGroupId);
 
     Optional<Subject> findBySubjectCode(String subjectCode);
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Subject s LEFT JOIN FETCH s.departmentGroup dg LEFT JOIN FETCH dg.department WHERE s.id = :id")
+    Optional<Subject> findByIdWithDepartment(@org.springframework.data.repository.query.Param("id") UUID id);
 }

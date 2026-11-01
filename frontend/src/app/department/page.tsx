@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Upload, GitFork } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPagination } from '@/components/ui/app-pagination';
+import { cleanSearchParam, normalizeSearchQuery } from '@/lib/utils';
 
 const DepartmentPage = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -20,15 +21,15 @@ const DepartmentPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [searchParams, setSearchParams] = useSearchParams();
-  const searchParam = searchParams.get('search') || '';
+  const searchParam = cleanSearchParam(searchParams.get('search')) || '';
   const pageParam = searchParams.get('page');
   const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
   const page = currentPage - 1;
   const pageSize = 10;
 
   const filteredDepartments = useMemo(() => {
-    if (!searchParam.trim()) return departments;
-    const q = searchParam.toLowerCase().trim();
+    const q = normalizeSearchQuery(searchParam).toLowerCase();
+    if (!q) return departments;
     return departments.filter(d => 
       (d.name && d.name.toLowerCase().includes(q)) ||
       (d.code && d.code.toLowerCase().includes(q))
@@ -50,8 +51,9 @@ const DepartmentPage = () => {
   const handleFilterChange = (newFilters: { search?: string }) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      if (newFilters.search) {
-        next.set('search', newFilters.search);
+      const cleanSearch = cleanSearchParam(newFilters.search);
+      if (cleanSearch) {
+        next.set('search', cleanSearch);
       } else {
         next.delete('search');
       }

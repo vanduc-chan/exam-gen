@@ -33,6 +33,10 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         try {
             jdbcTemplate.execute("PRAGMA foreign_keys = ON;");
+            try { jdbcTemplate.execute("ALTER TABLE eg_exam ADD COLUMN exam_type VARCHAR(50) DEFAULT 'SUBJECT'"); } catch (Exception ignored) {}
+            try { jdbcTemplate.execute("UPDATE eg_exam SET exam_type = 'SUBJECT' WHERE exam_type IS NULL OR exam_type = ''"); } catch (Exception ignored) {}
+            try { jdbcTemplate.execute("ALTER TABLE eg_exam ADD COLUMN blueprint_id VARCHAR(36)"); } catch (Exception ignored) {}
+            try { jdbcTemplate.execute("ALTER TABLE eg_exam ADD COLUMN blueprint_snapshot TEXT"); } catch (Exception ignored) {}
         } catch (Exception ex) {
             log.warn("Could not enable SQLite foreign_keys pragma: {}", ex.getMessage());
         }

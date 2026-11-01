@@ -8,6 +8,7 @@ import {
   GraduationCap, 
   HelpCircle, 
   FileText,
+  Award,
   ChevronLeft,
   ChevronRight,
   X,
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/courses', label: 'Đối tượng thi', icon: GraduationCap },
   { path: '/questions', label: 'Câu hỏi', icon: HelpCircle },
   { path: '/exams', label: 'Kỳ thi', icon: FileText },
+  { path: '/graduation-exams', label: 'Thi tốt nghiệp', icon: Award },
 ];
 
 const AppSidebar = () => {

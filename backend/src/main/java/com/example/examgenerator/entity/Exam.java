@@ -99,6 +99,16 @@ public class Exam extends BaseEntity {
     private LocalDateTime examDate;
 
     @Builder.Default
+    @Column(name = "exam_type", length = 50)
+    private String examType = "SUBJECT";
+
+    @Column(name = "blueprint_id")
+    private java.util.UUID blueprintId;
+
+    @Column(name = "blueprint_snapshot", columnDefinition = "TEXT")
+    private String blueprintSnapshot;
+
+    @Builder.Default
     @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ExamDetail> examDetails = new ArrayList<>();
 }
